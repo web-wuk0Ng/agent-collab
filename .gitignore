@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# 测试与工具缓存
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# 环境变量与密钥（切勿提交！）
+.env
+.env.*
+*.key
+secrets/
+
+# IDE / 系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,5 @@
+# 默认代码所有者：core 目录的改动需要核心负责人 review
+# 后续队员加入后，按模块认领情况在此追加
+/README.md                @web-wuk0Ng
+/CONTRIBUTING.md          @web-wuk0Ng
+/src/agent_project/core/  @web-wuk0Ng
