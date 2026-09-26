@@ -1,0 +1,21 @@
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch({ channel: 'msedge', args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+  const ctx = await browser.newContext({ permissions: ['camera', 'microphone'] });
+  const page = await ctx.newPage({ viewport: { width: 1360, height: 850 } });
+  const errs = [];
+  page.on('pageerror', e => errs.push(e.message));
+  await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
+  await page.fill('#login-name', '演示用户');
+  await page.click('#login-card .btn.primary');
+  await page.waitForSelector('.pos-card');
+  await page.click('#btn-start');
+  await page.waitForSelector('.msg.ai');
+  await page.click('#btn-cam');
+  await page.waitForTimeout(1200);
+  const visible = await page.$eval('#cam-video', v => !v.classList.contains('hidden') && v.videoWidth > 0);
+  console.log('camera preview live:', visible);
+  console.log(errs.length ? 'ERRORS: ' + errs.join(' | ') : 'no page errors');
+  await page.screenshot({ path: 'test/shots/10-camera.png' });
+  await browser.close();
+})().catch(e => { console.error('FAIL', e.message); process.exit(1); });

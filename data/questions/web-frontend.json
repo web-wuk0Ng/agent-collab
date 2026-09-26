@@ -1,0 +1,80 @@
+{
+  "position": "web-frontend",
+  "name": "Web 前端开发工程师",
+  "intro": "负责 Web 界面开发与交互体验。面试重点：HTML/CSS 基础、JavaScript 核心、框架原理、工程化、浏览器与性能优化。",
+  "skills": ["HTML/CSS", "JavaScript / ES6+", "Vue 或 React", "TypeScript", "Webpack / Vite", "浏览器原理", "性能优化", "HTTP"],
+  "questions": [
+    {
+      "id": "wf-t1", "type": "tech", "stage": "warm",
+      "text": "谈谈 CSS 中 Flex 布局的核心概念，如何实现一个水平垂直居中？至少说出两种方案。",
+      "keywords": ["flex", "justify-content", "align-items", "grid", "absolute", "居中"],
+      "points": ["主轴交叉轴概念", "justify-content/align-items", "flex方案", "absolute+transform方案", "grid方案"]
+    },
+    {
+      "id": "wf-t2", "type": "tech", "stage": "core",
+      "text": "JavaScript 的事件循环（Event Loop）是怎么工作的？宏任务和微任务的区别是什么？请分析一段 Promise/setTimeout 混合代码的输出顺序。",
+      "keywords": ["调用栈", "宏任务", "微任务", "Promise", "setTimeout", "执行顺序"],
+      "points": ["调用栈+任务队列模型", "微任务先于宏任务", "Promise.then是微任务", "setTimeout是宏任务", "能正确推演输出顺序"]
+    },
+    {
+      "id": "wf-t3", "type": "tech", "stage": "core",
+      "text": "Vue 的响应式原理是什么？Vue3 为什么改用 Proxy，相比 Object.defineProperty 好在哪里？",
+      "keywords": ["Object.defineProperty", "Proxy", "依赖收集", "getter/setter", "数组", "新增属性"],
+      "points": ["数据劫持+依赖收集+派发更新", "defineProperty需递归且监听不到新增属性和索引", "Proxy代理整个对象", "Vue3编译时优化（静态提升、patchFlag）"]
+    },
+    {
+      "id": "wf-t4", "type": "tech", "stage": "core",
+      "text": "浏览器从输入 URL 到页面渲染经历了哪些过程？前端可以做哪些性能优化？",
+      "keywords": ["DNS", "TCP", "HTTP", "渲染", "重排", "重绘", "懒加载", "缓存"],
+      "points": ["DNS/TCP/TLS/HTTP请求流程", "解析渲染关键路径", "资源优化（懒加载/压缩/CDN）", "减少重排重绘", "缓存策略"]
+    },
+    {
+      "id": "wf-t5", "type": "tech", "stage": "deep",
+      "text": "虚拟 DOM 和 Diff 算法的作用是什么？key 的作用是什么，为什么不建议用数组下标作为 key？",
+      "keywords": ["虚拟DOM", "diff", "key", "复用", "最小化更新"],
+      "points": ["虚拟DOM减少直接操作真实DOM", "diff同层比较", "key标识节点帮助复用", "下标key导致复用错乱与状态错位"]
+    },
+    {
+      "id": "wf-t6", "type": "tech", "stage": "deep",
+      "text": "什么是跨域？浏览器同源策略限制了什么？有哪些解决方案，各自的原理是什么？",
+      "keywords": ["同源策略", "CORS", "代理", "JSONP", "预检", "cookie"],
+      "points": ["同源=协议+域名+端口", "限制XHR/fetch与部分DOM访问", "CORS简单请求与预检请求", "开发环境proxy代理原理", "Nginx反向代理"]
+    },
+    {
+      "id": "wf-p1", "type": "project", "stage": "core",
+      "text": "介绍一个你独立或主导开发的前端项目：用了什么技术栈？遇到过什么交互或性能上的难题？",
+      "keywords": ["技术栈", "组件", "性能", "交互", "难点"],
+      "points": ["技术栈与选型理由", "清晰讲一个难点", "解决过程有量化结果", "个人贡献明确"]
+    },
+    {
+      "id": "wf-p2", "type": "project", "stage": "deep",
+      "text": "你做过哪些前端工程化方面的实践？比如构建优化、代码规范、组件封装，效果如何？",
+      "keywords": ["构建", "规范", "组件", "eslint", "打包", "体积"],
+      "points": ["具体实践而非口号", "有前后对比数据（构建时间/包体积）", "理解背后原理", "可持续维护意识"]
+    },
+    {
+      "id": "wf-s1", "type": "scenario", "stage": "core",
+      "text": "上线后用户反馈页面白屏，但你在本地无法复现，你会怎么排查？",
+      "keywords": ["报错监控", "sourcemap", "兼容性", "灰度", "环境", "复现"],
+      "points": ["先看线上错误监控/日志", "区分JS报错还是资源加载失败", "sourcemap还原堆栈", "考虑浏览器兼容与数据差异", "灰度回退止血"]
+    },
+    {
+      "id": "wf-s2", "type": "scenario", "stage": "deep",
+      "text": "一个列表页面有一万条数据要渲染，页面明显卡顿，你会怎么优化？",
+      "keywords": ["虚拟列表", "分页", "懒加载", "节流", "DocumentFragment"],
+      "points": ["分页或滚动加载", "虚拟列表只渲染可视区", "减少DOM节点与事件委托", "避免长任务阻塞主线程"]
+    },
+    {
+      "id": "wf-b1", "type": "behavior", "stage": "warm",
+      "text": "请做一个自我介绍，重点讲你掌握的前端技能和代表作品。",
+      "keywords": ["技能", "作品", "学习方式", "求职意向"],
+      "points": ["结构清晰", "突出岗位匹配技能", "有具体作品或项目支撑", "表达自然流畅"]
+    },
+    {
+      "id": "wf-b2", "type": "behavior", "stage": "deep",
+      "text": "产品和设计给了一个你觉得实现成本很高、体验也不好的需求，你会怎么应对？",
+      "keywords": ["沟通", "方案", "成本", "替代", "目标"],
+      "points": ["先理解需求背后的目标", "提出成本更低的替代方案", "用数据和原型沟通", "以业务目标为导向"]
+    }
+  ]
+}

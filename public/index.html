@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面镜 MockMirror · AI 模拟面试与能力提升</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🪞</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand" onclick="go('home')">
+    <span class="logo">🪞</span>
+    <div>
+      <div class="brand-name">面镜 MockMirror</div>
+      <div class="brand-sub">AI 模拟面试与能力提升平台</div>
+    </div>
+  </div>
+  <nav class="topnav">
+    <a data-nav="home" onclick="go('home')">开始面试</a>
+    <a data-nav="history" onclick="go('history')">成长记录</a>
+    <a data-nav="kb" onclick="go('kb')">知识库</a>
+    <a data-nav="admin" onclick="goAdmin()">🏫 管理中心</a>
+  </nav>
+  <div class="topbar-right">
+    <span id="ai-mode-badge" class="badge" title="点击配置">AI 未配置</span>
+    <button class="btn ghost sm" onclick="openAISettings()">⚙ AI 设置</button>
+    <span id="user-badge" class="badge user hidden" onclick="logout()"></span>
+  </div>
+</header>
+
+<!-- ============ 首页 ============ -->
+<main id="view-home" class="view">
+  <section class="hero">
+    <h1>把每一次面试，都变成一次提升</h1>
+    <p>AI 面试官 · 多模态对话 · 多维度评估 · 个性化提升路径</p>
+  </section>
+
+  <section id="login-card" class="card center-card">
+    <h2>输入你的姓名开始练习</h2>
+    <p class="muted">系统将记录你的历次面试与能力成长曲线</p>
+    <div class="row">
+      <input id="login-name" placeholder="例如：王涛" maxlength="20" onkeydown="if(event.key==='Enter')login()">
+      <button class="btn primary" onclick="login()">进入</button>
+    </div>
+  </section>
+
+  <section id="setup-card" class="card hidden">
+    <h2>选择目标岗位</h2>
+    <div id="position-list" class="pos-grid"></div>
+    <div class="row setup-opts">
+      <label>面试轮次
+        <select id="opt-rounds">
+          <option value="4">精简（4 题）</option>
+          <option value="6" selected>标准（6 题）</option>
+          <option value="9">完整（9 题）</option>
+        </select>
+      </label>
+      <label>输入方式
+        <select id="opt-mode">
+          <option value="video" selected>🎥 视频面试（摄像头 + 语音 + 文字）</option>
+          <option value="voice">🎙 语音 + 文字</option>
+          <option value="text">⌨ 仅文字</option>
+        </select>
+      </label>
+    </div>
+    <details class="jd-box">
+      <summary>🏢 企业定制：粘贴岗位 JD，AI 生成定制面试题（可选，需接入大模型）</summary>
+      <textarea id="opt-jd" rows="4" placeholder="粘贴招聘描述（JD），例如：岗位职责：1. 负责公司电商微服务后端开发，要求熟悉 Java、Spring Cloud、MySQL、Redis、Kafka，有高并发经验优先……"></textarea>
+      <p class="muted small" style="margin-top:4px">留空则使用该岗位的标准题库；填写后由大模型针对 JD 生成专属面试题（离线演示模式下自动回退标准题库）</p>
+    </details>
+    <div class="row setup-opts">
+      <button id="btn-start" class="btn primary lg" onclick="startInterview()">开始模拟面试 →</button>
+    </div>
+  </section>
+
+  <section class="feature-strip">
+    <div class="feat"><span>🧑‍💼</span><b>岗位化题库</b><small>后端 / 前端 / 算法，技术·项目·场景·行为四类题型</small></div>
+    <div class="feat"><span>🎙</span><b>多模态面试</b><small>语音 + 文字与 AI 面试官多轮对话，智能动态追问</small></div>
+    <div class="feat"><span>📊</span><b>多维评估</b><small>技术正确性·知识深度·逻辑·匹配度·表达五维报告</small></div>
+    <div class="feat"><span>📈</span><b>能力提升闭环</b><small>练习 → 评估 → 提升建议 → 成长曲线追踪</small></div>
+  </section>
+</main>
+
+<!-- ============ 面试房间 ============ -->
+<main id="view-interview" class="view hidden">
+  <div class="interview-layout">
+    <section class="chat-panel card">
+      <div class="chat-head">
+        <div>
+          <span id="iv-position" class="tag"></span>
+          <span id="iv-progress" class="muted"></span>
+        </div>
+        <div class="chat-head-ops">
+          <label class="tts-toggle"><input type="checkbox" id="tts-on" checked> 🔊 面试官语音</label>
+          <button class="btn danger sm" onclick="finishInterview()">结束并生成报告</button>
+        </div>
+      </div>
+      <div id="chat-log" class="chat-log"></div>
+      <div class="chat-input">
+        <div id="current-q" class="current-q"></div>
+        <div class="input-row">
+          <button id="btn-mic" class="btn mic" onclick="toggleMic()" title="语音输入">🎙</button>
+          <textarea id="answer-input" rows="3" placeholder="说出或输入你的回答…（Ctrl+Enter 提交）"></textarea>
+          <button class="btn primary" onclick="submitAnswer()">提交回答</button>
+        </div>
+        <div id="mic-status" class="mic-status muted"></div>
+      </div>
+    </section>
+    <aside class="side-panel">
+      <div class="card mini">
+        <h3>🎥 视频面试 · 临场分析</h3>
+        <div id="cam-box" class="cam-box">
+          <video id="cam-video" class="hidden" autoplay playsinline muted></video>
+          <div id="cam-placeholder" class="cam-placeholder muted">视频面试模式下将请求<br>摄像头权限，画面仅本机分析</div>
+          <div id="cam-calibrating" class="cam-calibrating hidden">请正对镜头保持自然表情，校准中…</div>
+        </div>
+        <div id="cam-stats" class="cam-stats hidden">
+          <div><span>👁 视线专注</span><b id="st-gaze">--</b></div>
+          <div><span>🧘 头部稳定</span><b id="st-steady">--</b></div>
+          <div><span>😊 自然表情</span><b id="st-smile">--</b></div>
+          <div><span>🎬 出镜率</span><b id="st-presence">--</b></div>
+        </div>
+        <button id="btn-cam" class="btn ghost sm full" onclick="toggleCamera()">开启摄像头</button>
+        <p class="muted small" style="margin-top:6px">画面仅在本机做实时分析，不会被录制或上传</p>
+      </div>
+      <div class="card mini">
+        <h3>💡 表达小贴士</h3>
+        <ul class="tips">
+          <li>结论先行，再分点展开</li>
+          <li>控制语速在每分钟 160~220 字</li>
+          <li>减少"嗯、然后、就是"等口头禅</li>
+          <li>结合项目实例说明</li>
+        </ul>
+      </div>
+      <div class="card mini">
+        <h3>📚 岗位技能考察点</h3>
+        <ul id="iv-skills" class="skills"></ul>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<!-- ============ 报告页 ============ -->
+<main id="view-report" class="view hidden">
+  <div id="report-body"></div>
+</main>
+
+<!-- ============ 成长记录 ============ -->
+<main id="view-history" class="view hidden">
+  <section class="card">
+    <h2>📈 能力成长曲线</h2>
+    <div id="growth-chart" class="chart-box"></div>
+  </section>
+  <section class="card">
+    <h2>🗂 面试历史</h2>
+    <div id="history-list"></div>
+  </section>
+</main>
+
+<!-- ============ 知识库 ============ -->
+<main id="view-kb" class="view hidden">
+  <section class="card">
+    <h2>📚 岗位知识库（RAG 检索演示）</h2>
+    <p class="muted">AI 面试官的追问与评估基于本地知识库检索增强。输入关键词，查看会被命中的知识片段：</p>
+    <div class="row">
+      <select id="kb-pos" onchange="kbSearch()"></select>
+      <input id="kb-q" placeholder="例如：HashMap、事件循环、幻觉" oninput="kbSearchDebounced()">
+    </div>
+    <div id="kb-hits"></div>
+  </section>
+</main>
+
+<!-- ============ 管理中心 ============ -->
+<main id="view-admin" class="view hidden">
+  <div class="row admin-tabs">
+    <button class="btn tab active" data-atab="dash" onclick="adminTab('dash')">📊 数据看板</button>
+    <button class="btn tab" data-atab="students" onclick="adminTab('students')">👥 学员管理</button>
+    <button class="btn tab" data-atab="bank" onclick="adminTab('bank')">📚 题库管理</button>
+    <span class="flex1"></span>
+    <button class="btn ghost sm" onclick="adminExport()">⬇ 导出 CSV</button>
+  </div>
+
+  <section id="atab-dash">
+    <div id="admin-login" class="card center-card hidden">
+      <h2>🏫 管理中心登录</h2>
+      <p class="muted">面向就业指导教师 / 企业 HR，默认口令 mockmirror2026（可在 data/db.json 修改）</p>
+      <div class="row" style="justify-content:center;margin-top:14px">
+        <input id="admin-pass" type="password" placeholder="管理员口令" onkeydown="if(event.key==='Enter')adminLogin()">
+        <button class="btn primary" onclick="adminLogin()">登录</button>
+      </div>
+      <p id="admin-login-err" class="small" style="color:var(--danger);margin-top:8px"></p>
+    </div>
+    <div id="admin-dash" class="hidden"></div>
+  </section>
+
+  <section id="atab-students" class="hidden"></section>
+
+  <section id="atab-bank" class="hidden">
+    <div class="card">
+      <h2>岗位题库</h2>
+      <div class="row">
+        <select id="ab-bank-sel" onchange="renderBankDetail()"></select>
+        <span id="ab-bank-meta" class="muted small"></span>
+      </div>
+      <div id="ab-bank-detail"></div>
+    </div>
+    <div class="card">
+      <h2>➕ 导入企业自定义题库（JSON）</h2>
+      <p class="muted small">格式：<code>{"name":"岗位名","intro":"简介","skills":["技能"],"questions":[{"type":"tech|project|scenario|behavior","text":"题干","keywords":["考察关键词"],"points":["要点"]}]}</code>，至少 3 题。导入后学员首页即可选择该岗位。</p>
+      <textarea id="ab-import" rows="8" placeholder='{"name":"Golang 后端工程师","questions":[{"type":"tech","text":"...","keywords":["goroutine","channel"]}]}'></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" onclick="importBank()">导入题库</button>
+        <button class="btn ghost" onclick="fillBankTemplate()">填入示例模板</button>
+        <span id="ab-import-result" class="small"></span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ============ AI 设置弹窗 ============ -->
+<div id="ai-modal" class="modal hidden" onclick="if(event.target===this)closeAISettings()">
+  <div class="modal-box card">
+    <h2>⚙ AI 大模型设置</h2>
+    <p class="muted">接入任意 OpenAI 兼容接口（智谱 / DeepSeek / 通义 / OpenAI / 本地 Ollama 等）。不配置也可使用内置离线演示引擎。</p>
+    <label>Base URL（以 /v1 结尾）<input id="cfg-url" placeholder="https://open.bigmodel.cn/api/paas/v4"></label>
+    <label>API Key<input id="cfg-key" type="password" placeholder="sk-…（仅保存在本机）"></label>
+    <label>模型名称<input id="cfg-model" placeholder="glm-4-flash / deepseek-chat / qwen-plus"></label>
+    <div class="row">
+      <button class="btn primary" onclick="saveAISettings()">保存</button>
+      <button class="btn ghost" onclick="testAISettings()">测试连接</button>
+      <span id="ai-test-result"></span>
+    </div>
+    <div id="ai-test-detail" class="muted small"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/vendor/mediapipe/face_mesh.js"></script>
+<script src="/js/vision.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

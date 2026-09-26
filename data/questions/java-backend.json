@@ -1,0 +1,80 @@
+{
+  "position": "java-backend",
+  "name": "Java 后端开发工程师",
+  "intro": "负责服务端业务逻辑、接口设计与高并发系统。面试重点：Java 基础与 JVM、并发编程、Spring 生态、数据库与缓存、系统设计。",
+  "skills": ["Java 基础", "JVM", "并发编程", "Spring / Spring Boot", "MySQL", "Redis", "消息队列", "分布式基础"],
+  "questions": [
+    {
+      "id": "jb-t1", "type": "tech", "stage": "warm",
+      "text": "请你先简单介绍一下 HashMap 的底层实现原理，JDK 8 之后做了哪些改进？",
+      "keywords": ["数组", "链表", "红黑树", "哈希", "扩容", "扰动"],
+      "points": ["数组+链表+红黑树结构", "链表长度超8且数组长度>=64转红黑树", "扩容机制与负载因子0.75", "JDK8头插改尾插解决死循环"]
+    },
+    {
+      "id": "jb-t2", "type": "tech", "stage": "core",
+      "text": "谈谈你对 Java 内存模型（JMM）的理解？volatile 关键字能解决什么问题，不能解决什么问题？",
+      "keywords": ["可见性", "有序性", "原子性", "happens-before", "指令重排", "内存屏障"],
+      "points": ["JMM主内存与工作内存", "volatile保证可见性与有序性", "不保证原子性（如i++）", "happens-before规则", "内存屏障禁止重排"]
+    },
+    {
+      "id": "jb-t3", "type": "tech", "stage": "core",
+      "text": "线程池的核心参数有哪些？如果让你来配置一个处理 IO 密集型任务的线程池，你会怎么设置，为什么？",
+      "keywords": ["corePoolSize", "maximumPoolSize", "队列", "拒绝策略", "keepAlive", "IO密集"],
+      "points": ["七大核心参数完整说出", "IO密集可设2N或N+1左右核心线程", "有界队列避免OOM", "合理选择拒绝策略并支持告警"]
+    },
+    {
+      "id": "jb-t4", "type": "tech", "stage": "core",
+      "text": "Spring Bean 的生命周期大致是怎样的？@Autowired 和 @Resource 有什么区别？",
+      "keywords": ["实例化", "属性注入", "初始化", "Aware", "BeanPostProcessor", "byType", "byName"],
+      "points": ["实例化→属性注入→Aware→BeanPostProcessor前置→初始化→后置→销毁", "@Autowired按类型byType", "@Resource默认按名称byName", "循环依赖三级缓存"]
+    },
+    {
+      "id": "jb-t5", "type": "tech", "stage": "core",
+      "text": "MySQL 中什么情况下索引会失效？一条 SQL 查询很慢，你的排查思路是什么？",
+      "keywords": ["最左前缀", "隐式转换", "函数", "like", "explain", "执行计划", "慢日志"],
+      "points": ["最左前缀原则", "对索引列使用函数或运算", "隐式类型转换", "like以%开头", "explain查看type/key/rows", "慢查询日志定位"]
+    },
+    {
+      "id": "jb-t6", "type": "tech", "stage": "deep",
+      "text": "Redis 缓存与数据库的一致性怎么保证？先删缓存还是先更新数据库，为什么？",
+      "keywords": ["Cache Aside", "延迟双删", "先更新数据库", "binlog", "过期时间"],
+      "points": ["Cache Aside模式先更新库再删缓存", "延迟双删应对并发读写", "设置兜底过期时间", "可通过binlog订阅异步删除"]
+    },
+    {
+      "id": "jb-p1", "type": "project", "stage": "core",
+      "text": "介绍一个你做过的最有挑战的后端项目：它解决什么问题？系统架构是怎样的？你负责哪一部分？",
+      "keywords": ["架构", "模块", "负责", "技术选型", "难点"],
+      "points": ["背景与目标清晰", "架构分层讲清（网关/服务/存储）", "明确个人职责边界", "能说出技术选型理由"]
+    },
+    {
+      "id": "jb-p2", "type": "project", "stage": "deep",
+      "text": "在你刚才说的项目里，遇到过最难的技术问题是什么？你是怎么定位和解决的？",
+      "keywords": ["定位", "日志", "排查", "解决", "验证"],
+      "points": ["问题现象描述具体", "有清晰的排查路径（日志/监控/压测）", "解决方案有对比和取舍", "有复盘和沉淀"]
+    },
+    {
+      "id": "jb-s1", "type": "scenario", "stage": "core",
+      "text": "如果线上一个接口突然从 50ms 飙到 3 秒，大量请求超时，服务是你负责的，你的处理步骤是什么？",
+      "keywords": ["止损", "日志", "监控", "慢SQL", "GC", "回滚", "扩容"],
+      "points": ["先止血（限流/回滚/扩容）再排查", "看监控定位层（网关/应用/DB）", "检查GC、慢SQL、下游依赖", "事后复盘与预防"]
+    },
+    {
+      "id": "jb-s2", "type": "scenario", "stage": "deep",
+      "text": "设计一个短链接服务：百万级日访问量，要求生成短码并支持 302 跳转，说说你的整体方案。",
+      "keywords": ["发号器", "哈希", "布隆过滤器", "缓存", "302", "幂等"],
+      "points": ["短码生成方案（发号器或哈希+冲突处理）", "读写分离与热点缓存", "302 vs 301的取舍", "容量估算与扩展性"]
+    },
+    {
+      "id": "jb-b1", "type": "behavior", "stage": "warm",
+      "text": "请用两分钟做一个自我介绍，重点讲和后端开发相关的经历。",
+      "keywords": ["教育", "技能", "项目", "求职意向"],
+      "points": ["结构清晰（我是谁-会什么-做过什么-想要什么）", "时长约1-2分钟", "突出与岗位匹配的技能", "不背简历、有重点"]
+    },
+    {
+      "id": "jb-b2", "type": "behavior", "stage": "deep",
+      "text": "和团队成员在技术方案上有分歧时，你会怎么处理？举一个实际例子。",
+      "keywords": ["沟通", "数据", "验证", "妥协", "结果"],
+      "points": ["尊重事实用数据说话", "先倾听对方理由", "小流量验证或基准测试", "对事不对人"]
+    }
+  ]
+}
