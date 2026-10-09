@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ① 面镜 MockMirror 面试系统（Node，零依赖）
+  node-check:
+    name: Node 面试系统检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 语法检查（后端 + 前端）
+        run: |
+          for f in server.js lib/*.js public/js/*.js test/e2e.js; do
+            echo "check $f"
+            node --check "$f"
+          done
+
+      - name: 冒烟启动（冷启动自动建库 + 接口自检）
+        run: |
+          node server.js &
+          SERVER_PID=$!
+          code=000
+          for i in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/positions || true)
+            [ "$code" = "200" ] && break
+            sleep 0.5
+          done
+          echo "positions: $code"
+          test "$code" = "200"
+          curl -s -X POST http://localhost:3000/api/login \
+            -H "Content-Type: application/json" -d '{"name":"CI"}' | grep -q '"id"'
+          kill $SERVER_PID
+
+  # ② Python AI 面试官 Agent 服务
+  python-agent:
+    name: Python Agent 测试
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python-agent
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: python-agent/requirements*.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: |
+          ruff check src tests
+          ruff format --check src tests
+
+      - name: Test (pytest)
+        run: pytest -v --cov=agent_project --cov-report=term

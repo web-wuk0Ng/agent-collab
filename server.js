@@ -70,7 +70,9 @@ const routes = {
   // AI 配置（保存在服务端本地 config.local.json，永不上传）
   'GET /api/ai-config': () => llm.publicConfig(),
   'POST /api/ai-config': (p) => llm.saveConfig(p),
-  'POST /api/ai-test': async () => ({ ok: await llm.testConnect() }),
+  'POST /api/ai-test': () => llm.testConnect(),
+  // Python 面试官 Agent 服务状态（引擎切换面板展示用）
+  'GET /api/agent-status': () => llm.pythonStatus(),
 
   // 知识库检索预览（RAG 演示）
   'POST /api/rag-preview': (p) => ({ hits: rag.search(p.position, p.query, 4) }),

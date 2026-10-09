@@ -631,7 +631,7 @@ function renderReport(rep, sessionMeta) {
         <div class="score-ring">${ringSVG(rep.overall)}</div>
         <div class="rep-sum">
           <h2>面试评估报告 ${sessionMeta ? `<span class="tag">${esc(sessionMeta.position)}</span> <span class="muted small">${new Date(sessionMeta.time).toLocaleString('zh-CN')}</span>` : ''}</h2>
-          <p class="muted small">评估引擎：${rep.engine === 'llm' ? '大模型深度评估' : '离线演示引擎'} · 生成于 ${new Date(rep.generatedAt).toLocaleString('zh-CN')}</p>
+          <p class="muted small">评估引擎：${rep.engine === 'python' ? 'Python 面试官 Agent（RAG + Agent 评估）' : rep.engine === 'llm' ? '大模型深度评估' : '离线演示引擎'} · 生成于 ${new Date(rep.generatedAt).toLocaleString('zh-CN')}</p>
           <div class="dim-bars">${dims}</div>
         </div>
       </div>
@@ -733,26 +733,48 @@ async function kbSearch() {
 }
 
 /* ---------------- AI 设置 ---------------- */
+function onEngineChange() {
+  const engine = $('cfg-engine').value;
+  $('cfg-llm-fields').classList.toggle('hidden', engine !== 'llm');
+  $('cfg-agent-fields').classList.toggle('hidden', engine !== 'python');
+  if (engine === 'python') refreshAgentStatus();
+}
+async function refreshAgentStatus() {
+  const box = $('agent-status');
+  box.textContent = '正在探测 Agent 服务…';
+  try {
+    const s = await API('/api/agent-status');
+    box.innerHTML = s.online
+      ? `✅ 服务在线 · v${esc(s.version || '')} · 内部引擎 ${esc(s.engine || '')}<br>岗位 ${s.knowledge.positions} 个 / 考点片段 ${s.knowledge.knowledgeChunks} 个 · 工具 ${(s.tools || []).length} 个`
+      : `❌ 未连接（${esc(s.url || '')}）：${esc(s.error || '')}`;
+  } catch (e) { box.textContent = '探测失败：' + e.message; }
+}
 async function openAISettings() {
   const cfg = await API('/api/ai-config');
+  $('cfg-engine').value = cfg.engine || 'offline';
   $('cfg-url').value = cfg.baseUrl || '';
   $('cfg-model').value = cfg.model || '';
   $('cfg-key').value = '';
   $('cfg-key').placeholder = cfg.hasKey ? '已保存（输入新值可覆盖）' : 'sk-…（仅保存在本机）';
+  $('cfg-agent-url').value = cfg.agentUrl || '';
   $('ai-test-result').textContent = '';
   $('ai-test-detail').textContent = '';
+  onEngineChange();
   $('ai-modal').classList.remove('hidden');
 }
 function closeAISettings() { $('ai-modal').classList.add('hidden'); }
 async function saveAISettings() {
   try {
     const cfg = await API('/api/ai-config', {
+      engine: $('cfg-engine').value,
       baseUrl: $('cfg-url').value.trim(),
       apiKey: $('cfg-key').value.trim(),
-      model: $('cfg-model').value.trim()
+      model: $('cfg-model').value.trim(),
+      agentUrl: $('cfg-agent-url').value.trim()
     });
     updateAIBadge(cfg);
-    toast(cfg.mode === 'llm' ? '已接入大模型 ✅' : '已保存（当前为离线演示模式）');
+    toast(cfg.engine === 'python' ? '已切换为 Python 面试官 Agent 引擎 🐍'
+      : cfg.engine === 'llm' ? '已接入大模型 ✅' : '已保存（当前为离线演示模式）');
   } catch (e) { toast(e.message); }
 }
 async function testAISettings() {
@@ -760,13 +782,26 @@ async function testAISettings() {
   await saveAISettings();
   const r = await API('/api/ai-test', {});
   $('ai-test-result').textContent = r.ok ? '✅ 连接成功' : '❌ 连接失败';
-  $('ai-test-detail').textContent = r.ok ? `模型回复：${r.reply}` : r.error;
+  $('ai-test-detail').textContent = r.ok ? (r.engine === 'python' ? r.reply : `模型回复：${r.reply}`) : r.error;
+  if ($('cfg-engine').value === 'python') refreshAgentStatus();
   if (r.ok) { const cfg = await API('/api/ai-config'); updateAIBadge(cfg); }
 }
 function updateAIBadge(cfg) {
   const b = $('ai-mode-badge');
-  if (cfg.mode === 'llm') { b.textContent = `AI 已接入 · ${cfg.model}`; b.classList.add('on'); }
-  else { b.textContent = 'AI 未配置（离线演示）'; b.classList.remove('on'); }
+  const engine = cfg.engine || (cfg.mode === 'llm' ? 'llm' : 'offline');
+  if (engine === 'python') {
+    b.textContent = 'AI 引擎 · Python Agent';
+    b.classList.add('on');
+    b.title = '面试官对话与评估由 python-agent 服务（FastAPI + BaseAgent）完成';
+  } else if (engine === 'llm') {
+    b.textContent = `AI 已接入 · ${cfg.model}`;
+    b.classList.add('on');
+    b.title = '大模型直连模式';
+  } else {
+    b.textContent = 'AI 未配置（离线演示）';
+    b.classList.remove('on');
+    b.title = '点击右上角「AI 设置」接入大模型或 Python Agent';
+  }
 }
 
 /* ---------------- 管理中心（企业/教师视角） ---------------- */

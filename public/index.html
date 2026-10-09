@@ -316,11 +316,26 @@
 <!-- ============ AI 设置弹窗 ============ -->
 <div id="ai-modal" class="modal hidden" onclick="if(event.target===this)closeAISettings()">
   <div class="modal-box card">
-    <h2>⚙ AI 大模型设置</h2>
-    <p class="muted">接入任意 OpenAI 兼容接口（智谱 / DeepSeek / 通义 / OpenAI / 本地 Ollama 等）。不配置也可使用内置离线演示引擎。</p>
-    <label>Base URL（以 /v1 结尾）<input id="cfg-url" placeholder="https://open.bigmodel.cn/api/paas/v4"></label>
-    <label>API Key<input id="cfg-key" type="password" placeholder="sk-…（仅保存在本机）"></label>
-    <label>模型名称<input id="cfg-model" placeholder="glm-4-flash / deepseek-chat / qwen-plus"></label>
+    <h2>⚙ AI 引擎设置</h2>
+    <p class="muted">三种引擎任选：<b>离线演示引擎</b>（零配置）· <b>大模型直连</b>（任意 OpenAI 兼容接口）· <b>Python 面试官 Agent</b>（本仓库 <code>python-agent/</code> 的 FastAPI 服务）。</p>
+    <label>AI 引擎
+      <select id="cfg-engine" onchange="onEngineChange()">
+        <option value="offline">离线演示引擎（零配置，随时可用）</option>
+        <option value="llm">大模型直连（智谱 / DeepSeek / 通义 / OpenAI …）</option>
+        <option value="python">Python 面试官 Agent（python-agent 服务）</option>
+      </select>
+    </label>
+    <div id="cfg-llm-fields">
+      <label>Base URL（以 /v1 结尾）<input id="cfg-url" placeholder="https://open.bigmodel.cn/api/paas/v4"></label>
+      <label>API Key<input id="cfg-key" type="password" placeholder="sk-…（仅保存在本机）"></label>
+      <label>模型名称<input id="cfg-model" placeholder="glm-4-flash / deepseek-chat / qwen-plus"></label>
+    </div>
+    <div id="cfg-agent-fields" class="hidden">
+      <label>Agent 服务地址<input id="cfg-agent-url" placeholder="http://127.0.0.1:8000"></label>
+      <p class="muted small" style="margin:6px 0">启动方式（本仓库 <code>python-agent/</code> 目录，或直接双击 <code>python-agent\启动PythonAgent.bat</code>）：<br>
+        <code>pip install -r requirements.txt</code> → <code>uvicorn app:app --port 8000</code></p>
+      <div id="agent-status" class="muted small">正在探测 Agent 服务…</div>
+    </div>
     <div class="row">
       <button class="btn primary" onclick="saveAISettings()">保存</button>
       <button class="btn ghost" onclick="testAISettings()">测试连接</button>

@@ -1,147 +1,124 @@
-# 面镜 MockMirror —— AI 模拟面试与能力提升软件
+# 面镜 MockMirror · AI 模拟面试与能力提升软件
 
 > 2026"数字马力杯"浙江省大学生服务外包创新应用大赛 · A11 赛题（锐捷网络）
-> 面向计算机相关专业学生的 AI 模拟面试与能力提升平台：岗位化情景模拟 · 视频面试与仪态分析 · 多模态互动面试 · 多维度智能评估 · 个性化提升路径 · 管理中心（教师/HR 视角）
+> 团队：浙江师范大学「面镜 MockMirror」
 
-**零依赖、开箱即用**：无需安装任何 npm 包，无需数据库，克隆下来 `node server.js` 即可运行。
+本仓库由两部分组成，**第一部分是主交付物，克隆下来双击就能跑；第二部分是可选的 AI 增强服务**：
 
-## ✨ 功能总览
+| # | 部分 | 位置 | 技术栈 | 是否必需 |
+|---|---|---|---|---|
+| ① | **面镜 MockMirror 面试系统**（岗位题库 / 视频面试 / 六维评估 / 管理中心） | 仓库根目录 | Node.js（零依赖） | ✅ 必需，开箱即用 |
+| ② | **Python AI 面试官 Agent 服务**（面试官对话与评估引擎） | [`python-agent/`](python-agent/) | Python 3.11 + FastAPI | ⭕ 可选，增强项 |
 
-**学员端**
+---
 
-| 赛题要求 | 本项目实现 |
-|---|---|
-| 岗位化题库与知识库 | 3 个内置岗位（Java 后端 / Web 前端 / Python 算法），每岗 12 题，覆盖技术知识、项目深挖、场景题、行为题四类；`data/knowledge/` 内置各岗位 RAG 知识库；支持企业导入自定义岗位题库 |
-| 多模态交互式模拟面试 | **视频面试模式**（浏览器摄像头权限授权 + 实时画面）+ 语音输入（浏览器语音识别）+ 文字输入；AI 面试官语音播报（TTS）；多轮对话 + 根据回答质量智能追问 |
-| 多维度表现分析 | 技术正确性 / 知识深度 / 逻辑严谨性 / 岗位匹配度 / 语言表达 / **仪态表现（视频面试）** 六维评分；表达分析含语速、作答时长、口头禅统计；视频模式经本地人脸关键点分析实时测量**视线专注度、头部稳定性、自然表情、出镜率**；结构化评估报告（逐题点评、亮点、不足、改进建议） |
-| 能力提升反馈 | 三周提升计划、推荐学习资源；历次面试记录 + 能力成长曲线可视化 |
-| RAG 检索增强 | 本地知识库 BM25 检索，检索片段注入面试官追问与评估 Prompt；前端「知识库」页可实时查看命中效果 |
-| **企业定制（落地特色）** | ① 粘贴岗位 JD，大模型生成定制面试题；② 管理中心：数据看板、学员管理、题库导入导出（CSV） |
+## 🚀 三步跑起来（最简，无需 npm install）
 
-**管理中心**（就业指导教师 / 企业 HR，口令默认 `mockmirror2026`，可在 `data/db.json` 修改）
+**第 1 步：安装 [Node.js](https://nodejs.org/)（18 或以上，一路下一步即可）**
 
-- 📊 数据看板：注册学员数、累计场次、平均分、各岗位使用情况、全体学员能力维度均分（定位群体共性短板）、最近面试动态
-- 👥 学员管理：每位学员的场次、平均分、最薄弱维度、最近练习时间
-- 📚 题库管理：查看内置题库；**导入企业自定义岗位题库（JSON）**，学员端立即可见；CSV 一键导出全部面试记录
-
-## 🚀 快速开始（GitHub 下载后即可运行）
-
-> **环境要求：只需安装 [Node.js](https://nodejs.org/)（18 或以上版本）**。无需 `npm install`，无需数据库，下载即用。
-
-**方式一：一键启动（最简单）**
+**第 2 步：下载项目**
 
 ```bash
 git clone https://github.com/web-wuk0Ng/agent-collab.git
 cd agent-collab
 ```
 
-然后：
+> 不想用 Git？在网页上点 **Code → Download ZIP**，解压后进入文件夹，效果一样。
 
-- **Windows**：双击 `启动面试.bat`（浏览器会自动打开）
-- **macOS / Linux**：终端执行 `bash start.sh`
+**第 3 步：启动**
 
-**方式二：命令行启动**
+- **Windows**：双击 **`启动面试.bat`**
+- **macOS / Linux**：终端执行 **`bash start.sh`**
+- 或命令行：`node server.js`
+
+浏览器会自动打开 **<http://localhost:3000>**（没自动打开就手动访问）。
+
+> - 视频面试 / 语音作答建议用 **Chrome / Edge**，浏览器弹窗点「允许」即可
+> - 需要数据库吗？**不需要**。需要 `npm install` 吗？**不需要**（零第三方依赖）
+> - 不配置大模型也能完整体验：内置离线演示引擎兜底
+
+---
+
+## 🤖 进阶：启动 Python AI 面试官 Agent（可选）
+
+这个服务用仓库原有的 `BaseAgent` 骨架实现了一个真正的**面试官 Agent**：它自己完成「知识库检索 → 决定追问还是换题 → 评估打分」的思考链路，对外提供 FastAPI 接口。启动后可在网页里把 AI 引擎切换成它。
+
+**方式一：一键启动（最省事）**
+
+- **Windows**：双击 **`python-agent\启动PythonAgent.bat`**（首次会自动建虚拟环境并装依赖）
+- **macOS / Linux**：`bash python-agent/start-agent.sh`
+
+**方式二：手动三步**
 
 ```bash
-node server.js        # 然后浏览器打开 http://localhost:3000
+cd python-agent
+
+python -m venv .venv
+source .venv/bin/activate          # macOS / Linux
+.venv\Scripts\activate             # Windows
+
+pip install -r requirements.txt
+uvicorn app:app --reload --port 8000
 ```
 
-> - 语音输入 / 视频面试建议使用 **Chrome / Edge**，并在浏览器弹窗中允许麦克风、摄像头权限
-> - 视频面试的 MediaPipe 视觉模型已随项目本地化（`public/vendor/mediapipe/`），**离线可用**
+打开 <http://127.0.0.1:8000/docs> 可以看到自动生成的接口文档。
 
-## 二、技术栈（标注新技术）
+然后回到面试系统网页：**右上角 ⚙ AI 设置 → AI 引擎选「Python 面试官 Agent」→ 点「测试连接」**，显示 ✅ 即打通。此时面试官的开场白、追问、评估报告全部由 Python Agent 生成。
 
-- **后端**：Node.js（原生 http，无框架依赖），REST API
-- **大模型应用**（新技术）：OpenAI 兼容 Chat Completions 协议接入任意大模型（智谱 GLM / DeepSeek / 通义 / 本地 Ollama 等）；多轮对话管理、动态追问决策、结构化 JSON 评估报告生成均由大模型驱动
-- **RAG 检索增强生成**（新技术）：本地知识库切片 + BM25 检索 + Prompt 注入，缓解大模型幻觉
-- **多模态**（新技术）：Web Speech API 语音识别（ASR）+ 语音合成（TTS）；**MediaPipe FaceMesh 视觉分析**（本地 WASM 推理，模型已随项目本地化部署于 `public/vendor/mediapipe/`，离线可用，画面不上传）——基于 468 个人脸关键点计算头部姿态与表情，产出视线专注度、头部稳定性、自然微笑、出镜率等仪态指标；基于语速/口头禅/时长的表达特征分析
-- **前端**：原生 HTML/CSS/JavaScript 单页应用，SVG 手写数据可视化（评分环、能力条、成长曲线）
-- **存储**：本地 JSON 文件数据库（`data/db.json`），零外部依赖、开箱即用
+> 只启动第 ① 部分也完全可用；两部分彼此独立，互不依赖。不配置任何大模型也能跑（两端都内置规则引擎兜底）。
 
-## 三、接入大模型（推荐，可获得完整 AI 体验）
+---
 
-1. 页面右上角点击 **⚙ AI 设置**；
-2. 填写任意 OpenAI 兼容接口信息，例如（智谱免费模型）：
-   - Base URL：`https://open.bigmodel.cn/api/paas/v4`
-   - API Key：在智谱开放平台注册后获取
-   - 模型名称：`glm-4-flash`（免费）
-   - 或 DeepSeek：`https://api.deepseek.com/v1` + `deepseek-chat`
-3. 点击 **测试连接**，显示 ✅ 即接入成功。
+## 📖 文档
 
-**不配置大模型也能运行**：系统内置离线演示引擎（规则追问 + 启发式评估），保证全流程可演示、可测试。
+| 文档 | 内容 |
+|---|---|
+| [docs/项目说明.md](docs/项目说明.md) | 完整功能清单、技术栈、AI 使用说明、API 一览、FAQ |
+| [docs/演示视频脚本.md](docs/演示视频脚本.md) | 3–5 分钟原型演示分镜脚本（含录制检查清单） |
+| [docs/团队协作指南.md](docs/团队协作指南.md) | 0 基础同学也能照抄的 Git 协作流程（分支模型 / PR / 急救包） |
+| [docs/git-cheatsheet.md](docs/git-cheatsheet.md) | Git 常用命令速查表 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 团队协作规范（分支命名、提交信息规范、Code Review 要求） |
+| [python-agent/](python-agent/) | Python Agent 服务源码与测试 |
 
-## 四、角色安排（团队：面镜 MockMirror）
+---
+
+## 🗂 目录结构
+
+```
+agent-collab/
+├── 启动面试.bat / start.sh     # 一键启动脚本（Windows / macOS·Linux）
+├── server.js                   # ① 面试系统服务入口（静态资源 + REST API）
+├── lib/                        #   数据层 / 题库 / RAG / LLM / 面试流程控制
+├── public/                     #   前端单页应用 + MediaPipe 本地视觉模型
+├── data/                       #   岗位题库、知识库语料（运行时数据自动生成）
+├── test/e2e.js                 #   Playwright 端到端测试
+├── python-agent/               # ② Python AI 面试官 Agent 服务
+│   ├── 启动PythonAgent.bat      #   一键启动（Windows）
+│   ├── start-agent.sh          #   一键启动（macOS / Linux）
+│   ├── src/agent_project/
+│   │   ├── core/               #   BaseAgent 核心循环 + 大模型客户端
+│   │   ├── agents/             #   InterviewerAgent（面试官 Agent 实现）
+│   │   ├── knowledge/          #   知识库 / 题库加载与 BM25 检索（复用 ① 的语料）
+│   │   ├── tools/              #   工具注册协议
+│   │   └── api/                #   FastAPI 接口层
+│   ├── tests/                  #   pytest 单元测试
+│   └── pyproject.toml
+├── docs/                       # 文档
+└── .github/workflows/ci.yml    # CI：Node 语法检查 + Python lint/pytest
+```
+
+---
+
+## 👥 团队分工
 
 | 成员 | 角色 | 主要分工 |
 |---|---|---|
-| 王涛（队长） | 项目负责人 / 后端 | 系统架构、面试流程 API、LLM 服务层与 RAG 检索 |
-| 谭绍卿 | 前端开发 | 面试房间交互、语音输入/TTS 集成、报告与成长曲线可视化 |
+| 王涛（队长） | 项目负责人 / 后端 | 系统架构、面试流程 API、LLM 服务层与 RAG 检索、Python Agent 服务 |
+| 谭绍卿 | 前端开发 | 会议式面试房间交互、语音输入 / TTS 集成、报告与成长曲线可视化 |
 | 夏艺凡 | 算法 / 数据 | 岗位题库设计、知识库编写、评估维度与评分规则 |
 | 覃佳维 | 测试 / 文档 | 功能测试、AI 安全边界测试（提示注入）、测试文档 |
 | 江帆帆 | 产品 / 运营 | 需求调研、原型设计、演示视频与答辩材料 |
 
-## 五、项目结构
+## 📄 许可
 
-```
-mockmirror/
-├── server.js               # 服务入口：静态资源 + REST API
-├── package.json
-├── lib/
-│   ├── db.js               # 本地 JSON 数据层（用户/会话/历史/成长/管理统计）
-│   ├── bank.js             # 岗位题库加载与出题计划（含企业自定义题库导入）
-│   ├── rag.js              # 知识库切片 + BM25 检索（RAG）
-│   ├── llm.js              # LLM 客户端 + JD 定制出题 + 离线演示引擎 + 评估报告
-│   └── interview.js        # 面试流程控制（追问决策/报告生成）
-├── data/
-│   ├── questions/          # 岗位题库（JSON，支持 custom_*.json 企业自定义）
-│   ├── knowledge/          # 岗位知识库（Markdown，RAG 语料）
-│   └── db.json             # 运行时数据（自动生成，不入库）
-├── public/
-│   ├── index.html          # 前端单页应用
-│   ├── css/style.css
-│   ├── js/app.js           # 前端逻辑（学员端 + 管理中心）
-│   ├── js/vision.js        # MediaPipe 视觉仪态分析
-│   └── vendor/mediapipe/   # FaceMesh 模型（本地化，离线可用）
-├── test/
-│   ├── e2e.js              # 端到端浏览器测试（Playwright，可选运行）
-│   └── shots/              # 测试截图
-├── docs/演示视频脚本.md     # 3-5 分钟原型演示分镜脚本
-└── README.md
-```
-
-## 六、核心 API 一览
-
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| POST | /api/login | 登录/注册（本地轻量账户，隔离面试历史） |
-| GET | /api/positions | 岗位列表与题库规模（含自定义岗位） |
-| GET/POST | /api/ai-config | 查看/保存大模型配置（Key 仅存本机） |
-| POST | /api/ai-test | 大模型连通性测试 |
-| POST | /api/interview/start | 开始面试（支持 jd 参数定制出题） |
-| POST | /api/interview/answer | 提交回答（返回追问或下一题） |
-| POST | /api/interview/finish | 结束并生成多维评估报告（含视频仪态指标） |
-| GET | /api/history / /api/growth | 面试历史 / 成长曲线 |
-| POST | /api/rag-preview | RAG 检索演示 |
-| POST | /api/admin/login | 管理中心登录（口令校验） |
-| GET | /api/admin/stats / students / export | 数据看板 / 学员管理 / CSV 导出 |
-| GET/POST | /api/admin/bank* | 题库查看 / 导入 / 删除（仅自定义） |
-
-## 七、AI 使用说明
-
-本项目在以下环节使用 AI（大模型）能力：
-
-1. **面试官对话**：开场白生成、根据回答与知识库检索结果决定"追问 or 过渡到下一题"，模拟真实面试压力节奏；
-2. **深度评估**：将全部问答记录 + 知识库参考片段交给大模型，产出六维评分、逐题点评、亮点/不足、可执行改进建议、三周提升计划与学习资源推荐；
-3. **JD 定制出题**：粘贴企业岗位 JD，大模型针对该岗位的技术栈与业务场景定制专属面试题；
-4. **RAG 检索增强**：所有追问与评估均基于本地知识库检索结果，减少大模型幻觉、提升评估专业性。
-
-**AI 安全与边界设计**：提示注入防护（系统提示与用户输入隔离声明）、输出 JSON Schema 约束与容错解析、大模型不可用时自动降级离线引擎（功能不中断）、API Key 仅保存在本机永不上传、视频画面仅在本机推理绝不外传。
-
-## 八、常见问题（FAQ）
-
-- **启动报错端口占用？** 换端口：`PORT=3001 node server.js`（Windows PowerShell：`$env:PORT=3001; node server.js`）
-- **语音识别不可用？** Web Speech API 仅在 Chrome/Edge 生效，且需联网加载语音引擎；也可直接文字作答
-- **摄像头没有画面？** 检查浏览器权限；确认没有被其他应用占用
-- **不填 API Key 会怎样？** 全流程可用（离线演示引擎），但追问与评估质量不如接入大模型
-- **如何修改管理中心口令？** 编辑 `data/db.json` 中 `admin.pass` 字段后重启
-- **数据在哪里？** 全部在 `data/db.json`，删除即重置；`data/config.local.json` 保存 AI 配置（含 Key，勿外传）
+[MIT](LICENSE)
