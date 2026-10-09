@@ -83,63 +83,157 @@
   </section>
 </main>
 
-<!-- ============ 面试房间 ============ -->
-<main id="view-interview" class="view hidden">
-  <div class="interview-layout">
-    <section class="chat-panel card">
-      <div class="chat-head">
-        <div>
-          <span id="iv-position" class="tag"></span>
-          <span id="iv-progress" class="muted"></span>
+<!-- ============ 面试房间（腾讯会议风格 · 会前检测 → 视频会议） ============ -->
+<main id="view-interview" class="view view-meeting hidden">
+
+  <!-- ① 会前设备检测（加入会议前页） -->
+  <section id="prejoin" class="prejoin">
+    <div class="pj-left">
+      <div class="pj-screen">
+        <video id="pj-video" autoplay playsinline muted></video>
+        <div id="pj-video-off" class="pj-video-off">
+          <span>🎥</span>
+          <div>摄像头未开启</div>
+          <small>点击下方「摄像头」开启预览</small>
         </div>
-        <div class="chat-head-ops">
-          <label class="tts-toggle"><input type="checkbox" id="tts-on" checked> 🔊 面试官语音</label>
-          <button class="btn danger sm" onclick="finishInterview()">结束并生成报告</button>
+        <div class="pj-self">我</div>
+        <div class="pj-privacy">🔒 画面与音频仅在本机处理，不上传、不录制</div>
+      </div>
+      <div class="pj-devbar">
+        <button id="pj-mic-btn" class="pj-dev on" onclick="prejoinToggleMic()"><i>🎙</i><span>麦克风</span></button>
+        <button id="pj-cam-btn" class="pj-dev on" onclick="prejoinToggleCam()"><i>🎥</i><span>摄像头</span></button>
+        <button class="pj-dev" onclick="prejoinTestSpeaker()"><i>🔊</i><span>扬声器测试</span></button>
+        <div class="pj-meter">
+          <span>输入音量</span>
+          <div class="meter"><i id="pj-meter-fill"></i></div>
         </div>
       </div>
-      <div id="chat-log" class="chat-log"></div>
-      <div class="chat-input">
-        <div id="current-q" class="current-q"></div>
-        <div class="input-row">
-          <button id="btn-mic" class="btn mic" onclick="toggleMic()" title="语音输入">🎙</button>
-          <textarea id="answer-input" rows="3" placeholder="说出或输入你的回答…（Ctrl+Enter 提交）"></textarea>
-          <button class="btn primary" onclick="submitAnswer()">提交回答</button>
-        </div>
-        <div id="mic-status" class="mic-status muted"></div>
+    </div>
+
+    <aside class="pj-right">
+      <div class="pj-logo">🪞 面镜 MockMirror</div>
+      <h2>会前设备检测</h2>
+      <p class="pj-sub">确认画面与声音正常后，加入本次模拟面试会议</p>
+      <div class="pj-info">
+        <div><span>面试岗位</span><b id="pj-pos">-</b></div>
+        <div><span>面试轮次</span><b id="pj-rounds">-</b></div>
+        <div><span>会议号</span><b id="pj-meeting-id">-</b></div>
+        <div><span>参会人</span><b>我 · AI 面试官</b></div>
+        <div><span>面试模式</span><b id="pj-mode">视频面试</b></div>
       </div>
-    </section>
-    <aside class="side-panel">
-      <div class="card mini">
-        <h3>🎥 视频面试 · 临场分析</h3>
-        <div id="cam-box" class="cam-box">
-          <video id="cam-video" class="hidden" autoplay playsinline muted></video>
-          <div id="cam-placeholder" class="cam-placeholder muted">视频面试模式下将请求<br>摄像头权限，画面仅本机分析</div>
-          <div id="cam-calibrating" class="cam-calibrating hidden">请正对镜头保持自然表情，校准中…</div>
-        </div>
-        <div id="cam-stats" class="cam-stats hidden">
-          <div><span>👁 视线专注</span><b id="st-gaze">--</b></div>
-          <div><span>🧘 头部稳定</span><b id="st-steady">--</b></div>
-          <div><span>😊 自然表情</span><b id="st-smile">--</b></div>
-          <div><span>🎬 出镜率</span><b id="st-presence">--</b></div>
-        </div>
-        <button id="btn-cam" class="btn ghost sm full" onclick="toggleCamera()">开启摄像头</button>
-        <p class="muted small" style="margin-top:6px">画面仅在本机做实时分析，不会被录制或上传</p>
-      </div>
-      <div class="card mini">
-        <h3>💡 表达小贴士</h3>
-        <ul class="tips">
-          <li>结论先行，再分点展开</li>
-          <li>控制语速在每分钟 160~220 字</li>
-          <li>减少"嗯、然后、就是"等口头禅</li>
-          <li>结合项目实例说明</li>
-        </ul>
-      </div>
-      <div class="card mini">
-        <h3>📚 岗位技能考察点</h3>
-        <ul id="iv-skills" class="skills"></ul>
-      </div>
+      <p class="pj-hint" id="pj-hint">💡 建议佩戴耳机、保持环境安静、正对摄像头；AI 面试官会实时分析你的仪态与表达。</p>
+      <button id="pj-join" class="btn primary lg full" onclick="joinMeeting()">加入会议</button>
+      <button class="btn ghost full" style="margin-top:8px" onclick="leavePrejoin()">返回岗位选择</button>
     </aside>
-  </div>
+  </section>
+
+  <!-- ② 会议中 -->
+  <section id="meeting" class="meeting hidden">
+    <header class="mtg-top">
+      <div class="mtg-left">
+        <span class="mtg-logo">🪞</span>
+        <div>
+          <b id="mtg-title">模拟面试</b>
+          <span class="mtg-sub">会议号 <em id="mtg-id">-</em> · 参会 2 人 · <i class="net" id="mtg-net">网络良好</i></span>
+        </div>
+      </div>
+      <div class="mtg-right">
+        <span id="iv-position" class="mtg-chip pos"></span>
+        <span id="iv-progress" class="mtg-chip"></span>
+        <span class="mtg-timer" id="mtg-timer">00:00</span>
+        <label class="tts-toggle"><input type="checkbox" id="tts-on" checked> 面试官语音</label>
+      </div>
+    </header>
+
+    <div class="mtg-body">
+      <div class="mtg-stage" id="mtg-stage">
+        <!-- AI 面试官画面 -->
+        <div class="tile tile-ai" id="tile-ai">
+          <div class="ai-avatar"><span>🤖</span><i class="ring r1"></i><i class="ring r2"></i></div>
+          <div class="ai-name">AI 面试官<small>大模型驱动 · 已接入岗位知识库</small></div>
+          <div class="ai-wave"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="tile-tag" id="ai-badge">正在提问</div>
+          <div class="caption hidden" id="ai-caption"></div>
+        </div>
+        <!-- 我的画面 -->
+        <div class="tile tile-me" id="tile-me">
+          <video id="cam-video" class="hidden" autoplay playsinline muted></video>
+          <div id="cam-placeholder" class="tile-off">
+            <span>🎥</span>
+            <div>摄像头未开启</div>
+            <small>点击底部「摄像头」开启，AI 才能分析你的仪态</small>
+          </div>
+          <div id="cam-calibrating" class="calib hidden">请正对镜头保持自然，校准中…</div>
+          <div class="tile-tag self" id="me-badge">正在作答</div>
+          <div class="tile-name" id="me-name">我</div>
+          <div class="tile-mute hidden" id="me-mute">🔇</div>
+        </div>
+      </div>
+
+      <aside class="mtg-side">
+        <div class="side-tabs">
+          <button class="side-tab active" data-mtab="chat" onclick="mtgSide('chat')">💬 面试对话</button>
+          <button class="side-tab" data-mtab="stats" onclick="mtgSide('stats')">📊 临场分析</button>
+        </div>
+
+        <div id="mtab-chat" class="side-body">
+          <div id="chat-log" class="chat-log"></div>
+          <div class="chat-input">
+            <div class="input-row">
+              <button id="btn-mic" class="btn mic" onclick="toggleMic()" title="语音作答">🎙</button>
+              <textarea id="answer-input" rows="2" placeholder="说出或输入你的回答…（Ctrl+Enter 提交）"></textarea>
+              <button class="btn primary" onclick="submitAnswer()">发送</button>
+            </div>
+            <div id="mic-status" class="mic-status"></div>
+          </div>
+        </div>
+
+        <div id="mtab-stats" class="side-body hidden">
+          <div class="side-block">
+            <h3>🎥 仪态实时分析</h3>
+            <div id="cam-stats" class="cam-stats hidden">
+              <div><span>👁 视线专注</span><b id="st-gaze">--</b></div>
+              <div><span>🧘 头部稳定</span><b id="st-steady">--</b></div>
+              <div><span>😊 自然表情</span><b id="st-smile">--</b></div>
+              <div><span>🎬 出镜率</span><b id="st-presence">--</b></div>
+            </div>
+            <p id="stats-hint" class="side-hint">开启摄像头后，将在此实时显示你的视线、姿态与表情指标（仅本机分析）。</p>
+          </div>
+          <div class="side-block">
+            <h3>💡 表达小贴士</h3>
+            <ul class="tips">
+              <li>结论先行，再分点展开</li>
+              <li>控制语速在每分钟 160~220 字</li>
+              <li>减少"嗯、然后、就是"等口头禅</li>
+              <li>结合项目实例说明</li>
+            </ul>
+          </div>
+          <div class="side-block">
+            <h3>📚 岗位技能考察点</h3>
+            <ul id="iv-skills" class="skills"></ul>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="mtg-bar">
+      <div class="bar-left">
+        <button class="ctrl" id="ctrl-mute" onclick="toggleMute()" title="静音"><i>🎙</i><span>静音</span></button>
+        <button class="ctrl" id="btn-cam" onclick="toggleCamera()" title="开关摄像头"><i>🎥</i><span>摄像头</span></button>
+        <button class="ctrl" id="ctrl-view" onclick="toggleViewMode()" title="切换视图"><i>🔳</i><span>视图</span></button>
+        <button class="ctrl" id="ctrl-chat" onclick="mtgSide('chat')" title="面试对话"><i>💬</i><span>对话</span></button>
+        <button class="ctrl" id="ctrl-stats" onclick="mtgSide('stats')" title="临场分析"><i>📊</i><span>分析</span></button>
+      </div>
+      <div class="bar-mid">
+        <span class="bar-status" id="bar-status">面试进行中</span>
+        <span class="bar-q" id="current-q">-</span>
+        <div class="bar-meter"><i id="bar-meter-fill"></i></div>
+      </div>
+      <div class="bar-right">
+        <button class="ctrl end" onclick="finishInterview()" title="结束并生成报告"><i>☎</i><span>结束面试</span></button>
+      </div>
+    </footer>
+  </section>
 </main>
 
 <!-- ============ 报告页 ============ -->

@@ -24,18 +24,26 @@
 - 👥 学员管理：每位学员的场次、平均分、最薄弱维度、最近练习时间
 - 📚 题库管理：查看内置题库；**导入企业自定义岗位题库（JSON）**，学员端立即可见；CSV 一键导出全部面试记录
 
-## 🚀 快速开始（GitHub 下载后三步运行）
+## 🚀 快速开始（GitHub 下载后即可运行）
+
+> **环境要求：只需安装 [Node.js](https://nodejs.org/)（18 或以上版本）**。无需 `npm install`，无需数据库，下载即用。
+
+**方式一：一键启动（最简单）**
 
 ```bash
-# 1. 克隆（或直接 Download ZIP 解压）
-git clone https://github.com/<your-name>/mockmirror.git
-cd mockmirror
+git clone https://github.com/web-wuk0Ng/agent-collab.git
+cd agent-collab
+```
 
-# 2. 启动（要求 Node.js >= 18，无需 npm install）
-node server.js
+然后：
 
-# 3. 打开浏览器
-# http://localhost:3000
+- **Windows**：双击 `启动面试.bat`（浏览器会自动打开）
+- **macOS / Linux**：终端执行 `bash start.sh`
+
+**方式二：命令行启动**
+
+```bash
+node server.js        # 然后浏览器打开 http://localhost:3000
 ```
 
 > - 语音输入 / 视频面试建议使用 **Chrome / Edge**，并在浏览器弹窗中允许麦克风、摄像头权限

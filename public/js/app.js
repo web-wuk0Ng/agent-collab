@@ -82,7 +82,17 @@ function pickPos(id) {
   document.querySelectorAll('.pos-card').forEach(el => el.classList.toggle('sel', el.dataset.id === id));
 }
 
-/* ---------------- 面试流程 ---------------- */
+/* ---------------- 面试流程：会前设备检测 → 视频会议 ---------------- */
+let pending = null;         // 会议开始前的开场信息
+let pjStream = null;        // 会前摄像头预览流
+let micStream = null;       // 麦克风音量检测流
+let micCtx = null, micAnalyser = null, micRaf = null;
+let callTimer = null, callStart = 0;
+let aiSpeakTimer = null, aiCaptionTimer = null;
+let micMuted = false, micOn = true;
+
+const newMeetingId = () => 'MM-' + Math.random().toString(36).slice(2, 5).toUpperCase() + '-' + Math.random().toString(36).slice(2, 5).toUpperCase();
+
 async function startInterview() {
   if (!state.user) return toast('请先输入姓名登录');
   try {
@@ -96,29 +106,256 @@ async function startInterview() {
       jd: ($('opt-jd') && $('opt-jd').value.trim()) || ''
     });
     state.session = { id: r.sessionId, mode, currentQ: { ...r.question, index: 0 } };
+    state.mtgId = newMeetingId();
+    pending = { greeting: r.greeting, question: r.question, planSize: r.planSize, jdApplied: r.jdApplied };
     const pos = state.positions.find(p => p.id === state.posId);
-    $('iv-position').textContent = pos ? pos.name : state.posId;
-    $('iv-skills').innerHTML = (pos ? pos.skills : []).map(s => `<li>${esc(s)}</li>`).join('');
-    $('chat-log').innerHTML = '';
-    updateProgress(0, r.planSize);
-    setCurrentQ(r.question.text);
-    addMsg('ai', r.greeting + '\n\n' + r.question.text, true);
+    // 会前设备检测页信息
+    $('pj-pos').textContent = pos ? pos.name : state.posId;
+    $('pj-rounds').textContent = `${r.planSize} 题`;
+    $('pj-meeting-id').textContent = state.mtgId;
+    $('pj-mode').textContent = mode === 'video' ? '视频面试（摄像头 + 语音 + 文字）'
+      : mode === 'voice' ? '语音面试（语音 + 文字）' : '文字面试（仅文字）';
+    $('pj-hint').textContent = mode === 'video'
+      ? '💡 建议佩戴耳机、保持环境安静、正对摄像头；AI 面试官会实时分析你的仪态与表达。'
+      : '💡 建议佩戴耳机、保持环境安静；AI 面试官会结合语音指标分析你的表达。';
+    showPrejoin();
     go('interview');
-    if (r.jdApplied) addMsg('sys', '🏢 本次面试题目已根据你粘贴的岗位 JD 由大模型定制生成');
-    if (mode === 'video') {
-      // 视频面试：自动请求摄像头权限并启动仪态分析
-      addMsg('sys', '🎥 视频面试模式：正在请求摄像头权限，AI 面试官将实时分析你的临场表现（画面仅本机分析）');
-      const ok = await enableCamera();
-      if (!ok) addMsg('sys', '⚠️ 未能开启摄像头，本次面试将不包含仪态分析，可继续用语音/文字作答');
-    }
+    await prejoinPrepare(mode);
   } catch (e) { toast(e.message); }
   finally { $('btn-start').disabled = false; }
+}
+
+function showPrejoin() {
+  document.body.classList.remove('in-meeting');
+  $('meeting').classList.add('hidden');
+  $('prejoin').classList.remove('hidden');
+  updateNetStatus();
+}
+
+/** 会前退出：结束本次会话邀请，回到岗位选择 */
+function leavePrejoin() {
+  cleanupMeeting();
+  state.session = null;
+  pending = null;
+  go('home');
+}
+
+/* ===== 会前设备检测 ===== */
+async function prejoinPrepare(mode) {
+  const textMode = mode === 'text';
+  $('pj-cam-btn').classList.toggle('hidden', textMode);
+  $('pj-mic-btn').classList.toggle('hidden', textMode);
+  $('pj-video-off').classList.toggle('show', textMode);
+  if (textMode) {
+    $('pj-hint').textContent = '⌨ 文字面试模式：无需麦克风与摄像头，直接加入会议即可开始作答。';
+    return;
+  }
+  await startMicMeter();
+  if (mode === 'video') await prejoinCameraOn();
+}
+
+async function startMicMeter() {
+  if (micStream) return true;
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    $('pj-mic-btn').classList.remove('on'); $('pj-mic-btn').classList.add('off');
+    micOn = false;
+    $('pj-hint').textContent = '⚠️ 未获得麦克风权限，本次将无法语音作答（可继续用文字作答，或检查浏览器地址栏权限后刷新）。';
+    return false;
+  }
+  try {
+    micCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = micCtx.createMediaStreamSource(micStream);
+    micAnalyser = micCtx.createAnalyser();
+    micAnalyser.fftSize = 512;
+    src.connect(micAnalyser);
+    const buf = new Uint8Array(micAnalyser.frequencyBinCount);
+    const tick = () => {
+      if (!micAnalyser) return;
+      micAnalyser.getByteFrequencyData(buf);
+      let sum = 0; for (const v of buf) sum += v;
+      const level = micMuted ? 0 : Math.min(100, Math.round(sum / buf.length * 2.2));
+      const a = $('pj-meter-fill'), b = $('bar-meter-fill');
+      if (a) a.style.width = level + '%';
+      if (b) b.style.width = level + '%';
+      micRaf = requestAnimationFrame(tick);
+    };
+    tick();
+  } catch (e) { console.warn('音量检测不可用:', e.message); }
+  return true;
+}
+
+function stopMicMeter() {
+  if (micRaf) { cancelAnimationFrame(micRaf); micRaf = null; }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  micAnalyser = null;
+  if (micCtx) { try { micCtx.close(); } catch {} micCtx = null; }
+}
+
+async function prejoinCameraOn() {
+  if (pjStream) return true;
+  try {
+    pjStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
+    $('pj-video').srcObject = pjStream;
+    $('pj-video-off').classList.remove('show');
+    $('pj-cam-btn').classList.add('on'); $('pj-cam-btn').classList.remove('off');
+    return true;
+  } catch (e) {
+    $('pj-video-off').classList.add('show');
+    $('pj-cam-btn').classList.remove('on'); $('pj-cam-btn').classList.add('off');
+    $('pj-hint').textContent = e.name === 'NotAllowedError'
+      ? '⚠️ 摄像头权限被拒绝：视频面试的仪态分析需要摄像头。可在浏览器地址栏允许后重试，或直接加入（将不含仪态分析）。'
+      : '⚠️ 摄像头开启失败：' + e.message + '，可继续加入会议用语音/文字作答。';
+    return false;
+  }
+}
+
+function prejoinCameraOff() {
+  if (pjStream) { pjStream.getTracks().forEach(t => t.stop()); pjStream = null; }
+  $('pj-video').srcObject = null;
+  $('pj-video-off').classList.add('show');
+  $('pj-cam-btn').classList.remove('on'); $('pj-cam-btn').classList.add('off');
+}
+
+async function prejoinToggleCam() {
+  if (pjStream) prejoinCameraOff(); else await prejoinCameraOn();
+}
+
+function prejoinToggleMic() {
+  micOn = !micOn;
+  $('pj-mic-btn').classList.toggle('on', micOn);
+  $('pj-mic-btn').classList.toggle('off', !micOn);
+  if (micStream) micStream.getAudioTracks().forEach(t => t.enabled = micOn);
+  toast(micOn ? '麦克风已开启' : '麦克风已静音');
+}
+
+function prejoinTestSpeaker() {
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance('你好，这里是面镜模拟面试的扬声器测试，听到声音说明设备正常。');
+    u.lang = 'zh-CN'; u.rate = 1.05;
+    speechSynthesis.speak(u);
+    toast('🔊 正在播放测试语音…');
+  } catch (e) { toast('扬声器测试失败：' + e.message); }
+}
+
+/* ===== 加入会议 ===== */
+async function joinMeeting() {
+  if (!state.session || !pending) return toast('面试会话已失效，请重新开始');
+  $('prejoin').classList.add('hidden');
+  $('meeting').classList.remove('hidden');
+  document.body.classList.add('in-meeting');
+
+  const pos = state.positions.find(p => p.id === state.posId);
+  const posName = pos ? pos.name : state.posId;
+  $('mtg-title').textContent = `${posName} · 模拟面试`;
+  $('mtg-id').textContent = state.mtgId;
+  $('me-name').textContent = state.user ? state.user.name : '我';
+  $('iv-position').textContent = posName;
+  $('iv-skills').innerHTML = (pos ? pos.skills : []).map(s => `<li>${esc(s)}</li>`).join('');
+  $('me-mute').classList.toggle('hidden', !micMuted);
+  $('btn-cam').classList.toggle('off', !pjStream);
+  startCallTimer();
+
+  // 会前预览流交接给会议中的画面
+  if (pjStream) {
+    camStream = pjStream; pjStream = null;
+    $('cam-video').srcObject = camStream;
+    $('cam-video').classList.remove('hidden');
+    $('cam-placeholder').classList.add('hidden');
+  }
+
+  $('chat-log').innerHTML = '';
+  updateProgress(0, pending.planSize);
+  setCurrentQ(pending.question.text);
+  addMsg('ai', pending.greeting + '\n\n' + pending.question.text, true);
+  if (pending.jdApplied) addMsg('sys', '🏢 本次面试题目已根据你粘贴的岗位 JD 由大模型定制生成');
+
+  if (state.session.mode === 'video') {
+    if (camStream) {
+      $('stats-hint').classList.add('hidden');
+      await VisionMonitor.start($('cam-video'), renderCamStats);
+      addMsg('sys', '🎥 已接入摄像头，AI 面试官将实时分析你的仪态表现（画面仅本机处理，不上传不录制）');
+    } else {
+      addMsg('sys', '⚠️ 未开启摄像头，本次面试不含仪态分析，可继续用语音/文字作答');
+    }
+  }
+  pending = null;
+}
+
+/* ===== 会议内控制 ===== */
+function startCallTimer() {
+  callStart = Date.now();
+  clearInterval(callTimer);
+  const tick = () => {
+    const s = Math.floor((Date.now() - callStart) / 1000);
+    $('mtg-timer').textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  };
+  tick();
+  callTimer = setInterval(tick, 1000);
+}
+function stopCallTimer() { clearInterval(callTimer); callTimer = null; }
+
+function mtgSide(tab) {
+  document.querySelectorAll('.side-tab').forEach(b => b.classList.toggle('active', b.dataset.mtab === tab));
+  $('mtab-chat').classList.toggle('hidden', tab !== 'chat');
+  $('mtab-stats').classList.toggle('hidden', tab !== 'stats');
+  $('ctrl-chat').classList.toggle('on', tab === 'chat');
+  $('ctrl-stats').classList.toggle('on', tab === 'stats');
+}
+
+function toggleViewMode() {
+  const on = $('mtg-stage').classList.toggle('grid');
+  $('ctrl-view').classList.toggle('on', on);
+  toast(on ? '已切换为宫格视图' : '已切换为演讲者视图');
+}
+
+function toggleMute() {
+  micMuted = !micMuted;
+  $('ctrl-mute').classList.toggle('off', micMuted);
+  $('ctrl-mute').querySelector('i').textContent = micMuted ? '🔇' : '🎙';
+  $('me-mute').classList.toggle('hidden', !micMuted);
+  if (micStream) micStream.getAudioTracks().forEach(t => t.enabled = !micMuted);
+  if (micMuted && recog) { try { recog.stop(); } catch {} }
+  toast(micMuted ? '已静音（语音作答暂停，可继续用文字）' : '已解除静音，可以说出你的回答');
+}
+
+/* AI 面试官说话动画 + 实时字幕 */
+function setAiSpeaking(text) {
+  const tile = $('tile-ai');
+  if (!tile) return;
+  tile.classList.add('speaking');
+  $('ai-badge').textContent = '正在提问';
+  const cap = $('ai-caption');
+  if (cap && text) {
+    cap.textContent = text.replace(/\s+/g, ' ').trim().slice(0, 140);
+    cap.classList.remove('hidden');
+  }
+  clearTimeout(aiSpeakTimer); clearTimeout(aiCaptionTimer);
+  const dur = Math.min(9000, 1500 + (text ? text.length * 60 : 0));
+  aiSpeakTimer = setTimeout(() => tile.classList.remove('speaking'), dur);
+  if (cap) aiCaptionTimer = setTimeout(() => cap.classList.add('hidden'), dur + 2600);
+}
+
+function setMeSpeaking(on) {
+  $('tile-me').classList.toggle('speaking', !!on);
+  $('ai-badge').textContent = on ? '正在聆听' : '正在提问';
+}
+
+function updateNetStatus() {
+  const el = $('mtg-net');
+  if (!el) return;
+  const ok = navigator.onLine;
+  el.textContent = ok ? '网络良好' : '网络不佳';
+  el.classList.toggle('bad', !ok);
 }
 
 function updateProgress(done, total) { $('iv-progress').textContent = `进度 ${done} / ${total}`; }
 
 function setCurrentQ(text) {
-  $('current-q').textContent = text ? `当前题目：${text}` : '';
+  const el = $('current-q');
+  if (el) el.textContent = text ? `📌 ${text}` : '';
 }
 
 function addMsg(kind, text, speak = false) {
@@ -129,7 +366,11 @@ function addMsg(kind, text, speak = false) {
   div.innerHTML = `<div class="who">${who}</div><div class="bubble">${esc(text)}</div>`;
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
-  if (kind === 'ai' && speak && $('tts-on').checked) speakText(text);
+  if (kind === 'ai') {
+    setMeSpeaking(false);
+    setAiSpeaking(text);
+    if (speak && $('tts-on').checked) speakText(text);
+  }
   return div;
 }
 
@@ -192,6 +433,7 @@ async function submitAnswer() {
 let recog = null;
 
 function toggleMic() {
+  if (micMuted) return toast('麦克风已静音，请先点击底部「静音」解除静音');
   if (recog) { recog.stop(); return; }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
@@ -206,8 +448,12 @@ function toggleMic() {
   state.voiceSession = { startTime: Date.now(), used: true };
 
   recog.onstart = () => {
-    $('btn-mic').classList.add('rec');
+    const b = $('btn-mic');
+    b.classList.add('rec');
+    b.textContent = '🔴';
     $('mic-status').textContent = '🔴 正在聆听…请开始作答（再次点击麦克风结束）';
+    state.micBaseLen = baseLen;
+    setMeSpeaking(true);
   };
   recog.onresult = e => {
     let interim = '', final = '';
@@ -226,9 +472,12 @@ function toggleMic() {
   };
   recog.onend = () => {
     recog = null;
-    $('btn-mic').classList.remove('rec');
+    const b = $('btn-mic');
+    b.classList.remove('rec');
+    b.textContent = '🎙';
     if (state.voiceSession) state.voiceSession.endTime = Date.now();
-    $('mic-status').textContent = '已停止聆听。可以继续补充或点击"提交回答"';
+    $('mic-status').textContent = '已停止聆听。可以继续补充或点击"发送"提交';
+    setMeSpeaking(false);
   };
   try { recog.start(); } catch (e) { toast('语音识别启动失败：' + e.message); }
 }
@@ -246,12 +495,13 @@ function collectMetrics(text) {
   return { wpm, seconds: +seconds.toFixed(1), fillers, confidence: conf };
 }
 
-/* ---------------- 摄像头 · 视频面试分析（仅本机推理，不上传） ---------------- */
+/* ---------------- 摄像头 · 仪态分析（仅本机推理，不上传） ---------------- */
 let camStream = null;
 
 function renderCamStats(s) {
   if (!s) return;
   $('cam-stats').classList.remove('hidden');
+  $('stats-hint').classList.add('hidden');
   $('st-gaze').textContent = s.gazePct + '%';
   $('st-steady').textContent = s.steadyPct + '%';
   $('st-smile').textContent = s.smilePct + '%';
@@ -262,18 +512,19 @@ function renderCamStats(s) {
 async function enableCamera() {
   if (camStream) return true;
   try {
-    camStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
     $('cam-video').srcObject = camStream;
     $('cam-video').classList.remove('hidden');
     $('cam-placeholder').classList.add('hidden');
-    $('btn-cam').textContent = '关闭摄像头';
+    $('btn-cam').classList.remove('off');
     if (state.session && state.session.mode === 'video') {
+      $('stats-hint').classList.add('hidden');
       await VisionMonitor.start($('cam-video'), renderCamStats);
     }
     return true;
   } catch (e) {
     toast(e.name === 'NotAllowedError'
-      ? '摄像头权限被拒绝：视频面试需要摄像头，请在浏览器地址栏允许后重试'
+      ? '摄像头权限被拒绝：请在浏览器地址栏允许摄像头后重试'
       : '摄像头开启失败：' + e.message);
     return false;
   }
@@ -284,11 +535,13 @@ async function toggleCamera() {
     VisionMonitor.stop();
     camStream.getTracks().forEach(t => t.stop());
     camStream = null;
+    $('cam-video').srcObject = null;
     $('cam-video').classList.add('hidden');
     $('cam-placeholder').classList.remove('hidden');
     $('cam-stats').classList.add('hidden');
+    $('stats-hint').classList.remove('hidden');
     $('cam-calibrating').classList.add('hidden');
-    $('btn-cam').textContent = '开启摄像头';
+    $('btn-cam').classList.add('off');
     return;
   }
   await enableCamera();
@@ -304,24 +557,47 @@ function speakText(text) {
     u.rate = 1.05;
     const vs = speechSynthesis.getVoices().filter(v => v.lang.startsWith('zh'));
     if (vs.length) u.voice = vs[0];
+    u.onend = () => $('tile-ai').classList.remove('speaking');
     speechSynthesis.speak(u);
   } catch (e) { /* TTS 失败不影响流程 */ }
 }
 
-/* ---------------- 结束与报告 ---------------- */
+/* ---------------- 结束会议与报告 ---------------- */
+function cleanupMeeting() {
+  stopCallTimer();
+  stopMicMeter();
+  try { speechSynthesis.cancel(); } catch {}
+  if (recog) { try { recog.stop(); } catch {} }
+  clearTimeout(aiSpeakTimer); clearTimeout(aiCaptionTimer);
+  setMeSpeaking(false);
+  $('tile-ai').classList.remove('speaking');
+  $('ai-caption').classList.add('hidden');
+  VisionMonitor.stop();
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  if (pjStream) { pjStream.getTracks().forEach(t => t.stop()); pjStream = null; }
+  $('cam-video').srcObject = null;
+  $('pj-video').srcObject = null;
+  $('cam-video').classList.add('hidden');
+  $('cam-placeholder').classList.remove('hidden');
+  $('cam-stats').classList.add('hidden');
+  $('meeting').classList.add('hidden');
+  $('prejoin').classList.add('hidden');
+  document.body.classList.remove('in-meeting');
+}
+
 async function finishInterview(auto = false) {
   if (!state.session) return;
+  const sess = state.session;
   try {
-    const videoMetrics = (state.session.mode === 'video' && camStream) ? VisionMonitor.summary() : null;
-    VisionMonitor.stop();
-    const { report } = await API('/api/interview/finish', { sessionId: state.session.id, videoMetrics });
-    state.lastReportSessionId = state.session.id;
+    const videoMetrics = (sess.mode === 'video' && camStream) ? VisionMonitor.summary() : null;
+    const { report } = await API('/api/interview/finish', { sessionId: sess.id, videoMetrics });
+    state.lastReportSessionId = sess.id;
     state.session = null;
-    try { speechSynthesis.cancel(); } catch {}
-    if (camStream) toggleCamera(); // 释放摄像头
+    pending = null;
+    cleanupMeeting();
     renderReport(report);
     go('report');
-    if (!auto) toast('评估报告已生成');
+    if (!auto) toast('已离开会议，评估报告已生成');
   } catch (e) { toast(e.message); }
 }
 
@@ -640,5 +916,8 @@ async function adminExport() {
   $('answer-input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitAnswer();
   });
+  window.addEventListener('online', updateNetStatus);
+  window.addEventListener('offline', updateNetStatus);
+  window.addEventListener('beforeunload', () => { try { cleanupMeeting(); } catch {} });
   if (speechSynthesis) speechSynthesis.getVoices(); // 预热语音列表
 })();

@@ -21,13 +21,29 @@ const { chromium } = require('playwright');
   await page.waitForSelector('.pos-card');
   await shot('02-positions');
 
-  // 3. 选择岗位 + 开始面试
-  await page.click('.pos-card:nth-child(2)'); // Web 前端
+  // 3. 选择岗位 + 开始面试 → 会前设备检测 → 加入会议
+  await page.click('.pos-card:nth-child(2)'); // 第 2 个岗位卡：Python 算法工程师
   await page.selectOption('#opt-rounds', '4');
   await page.click('#btn-start');
+  await page.waitForSelector('#pj-join', { state: 'visible' });
+  await page.waitForTimeout(1500);            // 等待设备检测页预览与音量条渲染
+  await shot('03-prejoin');
+  const prejoinText = await page.textContent('#pj-meeting-id');
+  if (!prejoinText || prejoinText === '-') throw new Error('会前检测页会议号未渲染');
+  await page.click('#pj-join');
   await page.waitForSelector('.msg.ai');
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(600);
   await shot('03-interview-start');
+
+  // 3.1 会议内视图切换 + 侧栏面板
+  await page.click('#ctrl-view');
+  await page.waitForTimeout(300);
+  await shot('03b-grid-view');
+  await page.click('#ctrl-view');
+  await page.click('#ctrl-stats');
+  await page.waitForTimeout(500);
+  await shot('03c-side-stats');
+  await page.click('#ctrl-chat');
 
   // 4. 三轮作答（针对实际题目作答难以预知，这里输入通用充分的回答）
   const answers = [
@@ -51,8 +67,8 @@ const { chromium } = require('playwright');
     }
   }
 
-  // 5. 结束生成报告
-  await page.click('.chat-head-ops .btn.danger');
+  // 5. 结束会议生成报告
+  await page.click('.mtg-bar .ctrl.end');
   await page.waitForSelector('.score-ring', { timeout: 30000 });
   await page.waitForTimeout(900);
   await shot('05-report-top');
