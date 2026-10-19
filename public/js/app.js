@@ -323,8 +323,8 @@ function toggleMute() {
   $('ctrl-mute').querySelector('i').textContent = micMuted ? '🔇' : '🎙';
   $('me-mute').classList.toggle('hidden', !micMuted);
   if (micStream) micStream.getAudioTracks().forEach(t => t.enabled = !micMuted);
-  if (micMuted && recog) { try { recog.stop(); } catch {} }
-  toast(micMuted ? '已静音（语音作答暂停，可继续用文字）' : '已解除静音，可以说出你的回答');
+  if (micMuted) quietStopListening();
+  toast(micMuted ? '已静音（语音作答暂停，可继续用文字）' : '已解除静音，面试官提问后会自动开麦');
 }
 
 /* AI 面试官说话动画 + 实时字幕 */
@@ -368,7 +368,7 @@ function addMsg(kind, text, speak = false) {
   const log = $('chat-log');
   const div = document.createElement('div');
   div.className = 'msg ' + kind;
-  const who = kind === 'ai' ? '🤖 AI 面试官' : kind === 'me' ? '我' : '系统';
+  const who = kind === 'ai' ? '🧑‍💼 面试官' : kind === 'me' ? '我' : '系统';
   div.innerHTML = `<div class="who">${who}</div><div class="bubble">${esc(text)}</div>`;
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
@@ -376,6 +376,7 @@ function addMsg(kind, text, speak = false) {
     setMeSpeaking(false);
     setAiSpeaking(text);
     if (speak && $('tts-on').checked) speakText(text);
+    else scheduleAutoListen(900); // 未开 TTS 时也要自动收音
   }
   return div;
 }
@@ -385,17 +386,20 @@ function showTyping() {
   const div = document.createElement('div');
   div.className = 'msg ai';
   div.id = 'typing';
-  div.innerHTML = `<div class="who">🤖 AI 面试官</div><div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>`;
+  div.innerHTML = `<div class="who">🧑‍💼 面试官</div><div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>`;
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
 }
 function hideTyping() { const t = $('typing'); if (t) t.remove(); }
 
-async function submitAnswer() {
+async function submitAnswer(fromVoice) {
   const input = $('answer-input');
   const text = input.value.trim();
   if (!text) return toast('请先说出或输入你的回答');
   if (!state.session) return;
+
+  // 语音自动发送：先安静地停掉收音，避免把面试官的话也录进去
+  if (recog || listenState) quietStopListening();
 
   const metrics = collectMetrics(text);
   addMsg('me', text);
@@ -435,57 +439,159 @@ async function submitAnswer() {
   }
 }
 
-/* ---------------- 语音输入（Web Speech API） ---------------- */
+/* ---------------- 语音输入（Web Speech API · 语音优先） ----------------
+ * 设计目标：
+ *  1) 默认语音作答：面试官说完自动开麦（auto-mic 开关可关）
+ *  2) 识别快：interimResults 实时上屏；Chrome 因静音自动断流时 250ms 内无缝续听
+ *  3) 自动发送：检测到停顿约 2.4 秒且已有实质内容 → 自动提交，无需点按钮
+ */
 let recog = null;
+let listenState = null;   // { baseLen, auto, stopped, hadSpeech, lastSpeech, idleTimer, restartTimer }
+let aiSpeakingNow = false;
+
+function micBtnUI(rec) {
+  const b = $('btn-mic');
+  b.classList.toggle('rec', !!rec);
+  b.textContent = rec ? '🔴' : '🎙';
+}
 
 function toggleMic() {
   if (micMuted) return toast('麦克风已静音，请先点击底部「静音」解除静音');
-  if (recog) { recog.stop(); return; }
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    toast('当前浏览器不支持语音识别，请使用 Chrome / Edge，或改用文字输入');
-    return;
-  }
-  recog = new SR();
-  recog.lang = 'zh-CN';
-  recog.continuous = true;
-  recog.interimResults = true;
-  let baseLen = $('answer-input').value.length;
-  state.voiceSession = { startTime: Date.now(), used: true };
+  if (recog) { userStopListening(); return; }
+  startListening({ auto: false });
+}
 
-  recog.onstart = () => {
-    const b = $('btn-mic');
-    b.classList.add('rec');
-    b.textContent = '🔴';
-    $('mic-status').textContent = '🔴 正在聆听…请开始作答（再次点击麦克风结束）';
-    state.micBaseLen = baseLen;
+function startListening({ auto = false } = {}) {
+  if (recog || !state.session) return;
+  if (micMuted) { if (!auto) toast('麦克风已静音，请先解除静音'); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { if (!auto) toast('当前浏览器不支持语音识别，请使用 Chrome / Edge，或改用文字输入'); return; }
+
+  const input = $('answer-input');
+  listenState = {
+    baseLen: input.value.length,
+    auto, stopped: false, hadSpeech: false,
+    lastSpeech: Date.now(), idleTimer: null, restartTimer: null
+  };
+  if (!state.voiceSession || state.voiceSession.endTime) state.voiceSession = { startTime: Date.now(), used: true };
+
+  const r = new SR();
+  recog = r;
+  r.lang = 'zh-CN';
+  r.continuous = true;
+  r.interimResults = true;   // 关键：边说边上屏，不等整句
+  r.maxAlternatives = 1;
+
+  r.onstart = () => {
+    micBtnUI(true);
+    $('mic-status').textContent = auto
+      ? '🎙 已自动开麦，直接开口作答；说完停顿约 2 秒自动发送'
+      : '🔴 正在聆听…请开始作答（再次点击麦克风结束）';
     setMeSpeaking(true);
   };
-  recog.onresult = e => {
+
+  r.onresult = e => {
     let interim = '', final = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const t = e.results[i][0].transcript;
       if (e.results[i].isFinal) final += t; else interim += t;
     }
     if (final) {
-      $('answer-input').value += final;
-      baseLen = $('answer-input').value.length;
+      input.value += final;
+      listenState.baseLen = input.value.length;
     }
-    $('mic-status').textContent = '🔴 聆听中：' + ($('answer-input').value.slice(baseLen) + interim).slice(-60);
+    if (final || interim) {
+      listenState.lastSpeech = Date.now();
+      listenState.hadSpeech = true;
+    }
+    $('mic-status').textContent = '🔴 聆听中：' + (input.value.slice(listenState.baseLen) + interim).slice(-60);
+    armSilenceCheck();
   };
-  recog.onerror = e => {
-    $('mic-status').textContent = e.error === 'not-allowed' ? '❌ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风' : '语音识别出错：' + e.error;
+
+  r.onerror = e => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      listenState.stopped = true;
+      $('mic-status').textContent = '❌ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风';
+    } else if (e.error === 'no-speech') {
+      // 静音超时，交给 onend 自动续听即可，不提示
+    } else {
+      $('mic-status').textContent = '语音识别出错：' + e.error + '（将自动重试）';
+    }
   };
-  recog.onend = () => {
+
+  r.onend = () => {
     recog = null;
-    const b = $('btn-mic');
-    b.classList.remove('rec');
-    b.textContent = '🎙';
-    if (state.voiceSession) state.voiceSession.endTime = Date.now();
-    $('mic-status').textContent = '已停止聆听。可以继续补充或点击"发送"提交';
-    setMeSpeaking(false);
+    micBtnUI(false);
+    const canRestart = listenState && !listenState.stopped
+      && state.session && !aiSpeakingNow && !$('answer-input').disabled && !micMuted;
+    if (canRestart) {
+      // Chrome 识别引擎说几句话就自动断流 → 立刻无缝续听，用户无感
+      $('mic-status').textContent = '🔴 正在聆听…';
+      listenState.restartTimer = setTimeout(() => startListening({ auto: listenState.auto }), 250);
+      return;
+    }
+    finishListenUI('已停止收音。可以继续补充或点击「发送」提交');
   };
-  try { recog.start(); } catch (e) { toast('语音识别启动失败：' + e.message); }
+  try { r.start(); } catch (e) { toast('语音识别启动失败：' + e.message); }
+}
+
+function userStopListening() {
+  if (listenState) {
+    listenState.stopped = true;
+    clearTimeout(listenState.idleTimer);
+    clearTimeout(listenState.restartTimer);
+  }
+  if (recog) { try { recog.stop(); } catch {} }
+  micBtnUI(false);
+  finishListenUI('已停止收音。可以继续补充或点击「发送」提交');
+}
+
+function quietStopListening() {
+  if (listenState) {
+    listenState.stopped = true;
+    clearTimeout(listenState.idleTimer);
+    clearTimeout(listenState.restartTimer);
+  }
+  if (recog) { try { recog.stop(); } catch {} }
+  recog = null;
+  micBtnUI(false);
+  setMeSpeaking(false);
+}
+
+function finishListenUI(msg) {
+  if (state.voiceSession) state.voiceSession.endTime = Date.now();
+  $('mic-status').textContent = msg;
+  setMeSpeaking(false);
+}
+
+/** 停顿自动发送：每 600ms 检查一次；停顿 ≥2.4s 且有实质内容 → 自动提交 */
+function armSilenceCheck() {
+  if (!listenState || listenState.stopped) return;
+  clearTimeout(listenState.idleTimer);
+  listenState.idleTimer = setTimeout(() => {
+    if (!recog || !listenState || listenState.stopped) return;
+    const autoOn = $('auto-mic') && $('auto-mic').checked;
+    const len = $('answer-input').value.trim().length;
+    const idle = Date.now() - listenState.lastSpeech;
+    if (autoOn && listenState.hadSpeech && len >= 4 && idle >= 2400) {
+      submitAnswer(true);
+    } else if (autoOn && listenState.hadSpeech && len >= 4 && idle >= 1200) {
+      $('mic-status').textContent = `⏳ 已检测到停顿，约 ${Math.ceil((2400 - idle) / 1000)} 秒后自动发送（继续说话可取消）`;
+      armSilenceCheck();
+    } else {
+      armSilenceCheck();
+    }
+  }, 600);
+}
+
+/** 面试官说完 → 自动开麦（语音优先的核心） */
+function scheduleAutoListen(delay = 600) {
+  if (!$('auto-mic') || !$('auto-mic').checked) return;
+  if (!state.session || state.session.mode === 'text') return;
+  if (micMuted || recog || aiSpeakingNow) return;
+  setTimeout(() => {
+    if (!recog && !aiSpeakingNow && state.session && !$('answer-input').disabled) startListening({ auto: true });
+  }, delay);
 }
 
 function collectMetrics(text) {
@@ -560,12 +666,23 @@ function speakText(text) {
     const clean = text.replace(/\s+/g, ' ').slice(0, 300);
     const u = new SpeechSynthesisUtterance(clean);
     u.lang = 'zh-CN';
-    u.rate = 1.05;
+    u.rate = 1.12;
     const vs = speechSynthesis.getVoices().filter(v => v.lang.startsWith('zh'));
     if (vs.length) u.voice = vs[0];
-    u.onend = () => $('tile-ai').classList.remove('speaking');
+    aiSpeakingNow = true;
+    const done = () => {
+      aiSpeakingNow = false;
+      const t = $('tile-ai'); if (t) t.classList.remove('speaking');
+      // 说完 → 稍等 0.6s（避开回声）自动开麦收音
+      scheduleAutoListen(600);
+    };
+    u.onend = done;
+    u.onerror = done;
     speechSynthesis.speak(u);
-  } catch (e) { /* TTS 失败不影响流程 */ }
+  } catch (e) {
+    aiSpeakingNow = false;
+    scheduleAutoListen(400);
+  }
 }
 
 /* ---------------- 结束会议与报告 ---------------- */
@@ -573,7 +690,7 @@ function cleanupMeeting() {
   stopCallTimer();
   stopMicMeter();
   try { speechSynthesis.cancel(); } catch {}
-  if (recog) { try { recog.stop(); } catch {} }
+  quietStopListening();
   clearTimeout(aiSpeakTimer); clearTimeout(aiCaptionTimer);
   setMeSpeaking(false);
   $('tile-ai').classList.remove('speaking');
@@ -991,6 +1108,10 @@ async function adminExport() {
   try { await ensureAIReady(); } catch {}
   $('answer-input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitAnswer();
+  });
+  // 打字时视为仍在"说话"，避免停顿自动发送打断手动输入
+  $('answer-input').addEventListener('input', () => {
+    if (listenState) listenState.lastSpeech = Date.now();
   });
   window.addEventListener('online', updateNetStatus);
   window.addEventListener('offline', updateNetStatus);

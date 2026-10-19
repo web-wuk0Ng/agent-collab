@@ -350,3 +350,27 @@ table.rep-table th { color: var(--ink-2); font-weight: 600; font-size: 12.5px; }
 }
 .modal-box .ai-warn { margin-bottom: 4px; }
 .ai-warn .btn { margin-left: auto; }
+
+/* ---------- 虚拟面试官形象 ---------- */
+.ai-avatar svg { width: 100%; height: 100%; border-radius: 50%; display: block; }
+.av-head { animation: avBob 5.2s ease-in-out infinite; }
+.av-shoulders { animation: avBreathe 4.8s ease-in-out infinite; }
+.av-lid { transform: scaleY(0); transform-box: fill-box; transform-origin: 50% 0; animation: avBlink 4.6s infinite; }
+.av-lid:nth-of-type(2) { animation-delay: .05s; }
+@keyframes avBlink { 0%, 91%, 100% { transform: scaleY(0); } 94%, 96.5% { transform: scaleY(1); } }
+.av-mouth { transform-box: fill-box; transform-origin: 50% 50%; }
+.tile-ai.speaking .av-mouth { animation: avTalk .34s infinite alternate ease-in-out; }
+@keyframes avTalk {
+  0%   { transform: scaleY(.35) scaleX(.9); }
+  45%  { transform: scaleY(1.55) scaleX(1.02); }
+  70%  { transform: scaleY(.6) scaleX(.95); }
+  100% { transform: scaleY(1.35) scaleX(1.06); }
+}
+.tile-ai.speaking .av-brow { animation: avBrow 2.8s infinite; }
+@keyframes avBrow { 0%, 80%, 100% { transform: translateY(0); } 88% { transform: translateY(-1.6px); } }
+@keyframes avBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(1.3px) rotate(.4deg); }
+  65% { transform: translateY(-.9px) rotate(-.35deg); }
+}
+@keyframes avBreathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.015); } }
