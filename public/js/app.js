@@ -257,6 +257,71 @@ function prejoinTestSpeaker() {
   } catch (e) { toast('扬声器测试失败：' + e.message); }
 }
 
+/* ---------------- 语音识别自检（会前） ----------------
+ * 一键验证"麦克风 → 识别引擎 → 出字"整条链路，8 秒内出结果。
+ * 你说话但识别不到时，用它立刻定位：是麦克风没声音，还是浏览器识别服务不可用。
+ */
+let selfTestRecog = null;
+
+function voiceSelfTest() {
+  const box = $('pj-voice-result');
+  const btn = $('pj-voice-btn');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  box.classList.remove('hidden');
+  if (!SR) {
+    box.innerHTML = '❌ 当前浏览器不支持语音识别。请改用 <b>Edge</b> 或 Chrome，或直接打字作答。';
+    return;
+  }
+  if (selfTestRecog) { try { selfTestRecog.stop(); } catch {} return; }
+
+  const isChrome = /Chrome/.test(navigator.userAgent) && !/Edg\//.test(navigator.userAgent);
+  const isEdge = /Edg\//.test(navigator.userAgent);
+  const r = new SR();
+  selfTestRecog = r;
+  r.lang = 'zh-CN'; r.continuous = true; r.interimResults = true;
+  btn.classList.add('on');
+  box.innerHTML = '🎙 请对着麦克风说几句话（例如"你好，我来参加面试"）…<span class="vr-live"></span>';
+
+  let heard = false, finished = false;
+  const wrapUp = (ok, msg) => {
+    if (finished) return; finished = true;
+    selfTestRecog = null;
+    btn.classList.remove('on');
+    box.innerHTML = msg;
+  };
+  r.onresult = e => {
+    heard = true;
+    let txt = '';
+    for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+    const live = box.querySelector('.vr-live');
+    if (live) live.textContent = ' 听到：' + txt.slice(-30);
+  };
+  r.onerror = e => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      wrapUp(false, '❌ 麦克风权限被拒绝：请点浏览器地址栏左侧的锁形图标，允许麦克风后重试。');
+    } else if (e.error === 'network') {
+      wrapUp(false, '❌ 识别服务连接失败（network）。' + (isChrome
+        ? '<b>Chrome 的在线语音识别走 Google 服务，在国内不可用——请改用 Edge 面试</b>，或直接打字作答。'
+        : '请检查网络后重试，或改用 Edge / 打字作答。'));
+    } else if (e.error === 'no-speech') {
+      wrapUp(false, '⚠️ 引擎正常但没有听到声音：请检查麦克风是否被系统静音、是否选对了输入设备。');
+    } else {
+      wrapUp(false, '⚠️ 识别出错：' + e.error + '。可重试，或改用 Edge / 打字作答。');
+    }
+  };
+  r.onend = () => {
+    if (finished) return;
+    if (heard) wrapUp(true, '✅ 语音识别正常！刚才你说的话已成功识别，可以放心加入会议。');
+    else wrapUp(false, '⚠️ 8 秒内没有收到任何识别结果。' + (isChrome
+      ? '<b>Chrome 的在线识别服务在国内基本不可用，强烈建议改用 Edge</b>（识别快且稳定）。'
+      : isEdge ? '请确认麦克风没静音、系统输入设备选对后重试。' : '建议改用 Edge 浏览器。') + '也可以直接打字作答。');
+  };
+  try {
+    r.start();
+    setTimeout(() => { if (selfTestRecog) { try { selfTestRecog.stop(); } catch {} } }, 8000);
+  } catch (e) { wrapUp(false, '❌ 启动失败：' + e.message); }
+}
+
 /* ===== 加入会议 ===== */
 async function joinMeeting() {
   if (!state.session || !pending) return toast('面试会话已失效，请重新开始');
@@ -581,6 +646,7 @@ function stopBargeInWatch() { if (bargeRaf) { cancelAnimationFrame(bargeRaf); ba
 function interruptInterviewer() {
   speechSynthesis.cancel();
   aiSpeakingNow = false;
+  clearTimeout(ttsWatchdog); clearInterval(ttsResumeTimer);
   stopBargeInWatch();
   setAvatarTalking(false);
   skipThink();
@@ -595,6 +661,8 @@ function toggleMic() {
   if (micMuted) return toast('麦克风已静音，请先点击底部「静音」解除静音');
   skipThink();   // 手动开麦 = 跳过思考倒计时
   if (recog) { userStopListening(); return; }
+  // 面试官正在说话时手动点麦 = 打断面试官
+  if (aiSpeakingNow) { interruptInterviewer(); return; }
   startListening({ auto: false });
 }
 
@@ -659,6 +727,13 @@ function startListening({ auto = false } = {}) {
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
       listenState.stopped = true;
       $('mic-status').textContent = '❌ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风';
+    } else if (e.error === 'network') {
+      // 在线识别服务连不上（Chrome 在国内的典型故障）：重试一次仍失败就放弃，别无限重启
+      listenState.netErrs = (listenState.netErrs || 0) + 1;
+      if (listenState.netErrs >= 2) {
+        listenState.stopped = true;
+        $('mic-status').textContent = '❌ 语音识别服务不可用（当前浏览器的在线识别连不上）。强烈建议改用 Edge 打开本页面，或直接打字作答';
+      }
     } else if (e.error === 'no-speech') {
       // 静音超时，交给 onend 自动续听即可，不提示
     } else {
@@ -677,6 +752,8 @@ function startListening({ auto = false } = {}) {
       listenState.restartTimer = setTimeout(() => startListening({ auto: listenState.auto }), 250);
       return;
     }
+    // 识别服务不可用导致的停止：保留报错文案，别用"已停止收音"覆盖
+    if (listenState && listenState.netErrs >= 2) { setMeSpeaking(false); return; }
     finishListenUI('已停止收音。可以继续补充或点击「发送」提交');
   };
   try { r.start(); } catch (e) { toast('语音识别启动失败：' + e.message); }
@@ -863,8 +940,20 @@ async function toggleCamera() {
   await enableCamera();
 }
 
-/* ---------------- TTS 语音播报 ---------------- */
+/* ---------------- TTS 语音播报 ----------------
+ * 注意：Chrome 的 speechSynthesis 存在 onend 不触发的已知 bug（长文本/语音列表异步加载/
+ * cancel 后假死），一旦 onend 丢失 → aiSpeakingNow 永远为 true → 自动开麦永远不执行 →
+ * 候选人怎么说话都识别不到。所以必须加看门狗：按文本长度估算时长，超时强制收尾。
+ */
+let ttsWatchdog = null, ttsResumeTimer = null;
+
 function speakText(text) {
+  const estMs = Math.min(25000, 1500 + text.replace(/\s+/g, ' ').slice(0, 300).length * 280);
+  const forceDone = () => {   // 看门狗：onend 丢失时强制复位，保证候选人能开麦
+    if (!aiSpeakingNow) return;
+    try { speechSynthesis.cancel(); } catch {}
+    finishSpeech();
+  };
   try {
     speechSynthesis.cancel();
     const clean = text.replace(/\s+/g, ' ').slice(0, 300);
@@ -876,27 +965,38 @@ function speakText(text) {
     aiSpeakingNow = true;
     startBargeInWatch();   // 播放期间允许候选人直接开口打断
     setAvatarTalking(true);
-    const done = () => {
-      aiSpeakingNow = false;
-      stopBargeInWatch();
-      setAvatarTalking(false);
-      const t = $('tile-ai'); if (t) t.classList.remove('speaking');
-      // 反问环节结束语说完 → 直接收尾生成报告
-      if (state.autoFinishAfterSpeech) {
-        state.autoFinishAfterSpeech = false;
-        finishInterview(true);
-        return;
-      }
-      // 说完 → 稍等 0.6s（避开回声）自动开麦收音
-      scheduleAutoListen(600);
-    };
-    u.onend = done;
-    u.onerror = done;
+    u.onend = finishSpeech;
+    u.onerror = finishSpeech;
     speechSynthesis.speak(u);
+    // Chrome 长文本假死缓解：周期性 resume
+    clearInterval(ttsResumeTimer);
+    ttsResumeTimer = setInterval(() => { try { speechSynthesis.resume(); } catch {} }, 4000);
+    // 看门狗：超过估算时长 + 缓冲仍未结束 → 强制收尾
+    clearTimeout(ttsWatchdog);
+    ttsWatchdog = setTimeout(forceDone, estMs + 4000);
   } catch (e) {
     aiSpeakingNow = false;
     scheduleAutoListen(400);
   }
+}
+
+function finishSpeech() {
+  if (!aiSpeakingNow) return;   // 防止 onend/onerror/看门狗重复触发
+  aiSpeakingNow = false;
+  clearTimeout(ttsWatchdog);
+  clearInterval(ttsResumeTimer);
+  stopBargeInWatch();
+  setAvatarTalking(false);
+  const t = $('tile-ai'); if (t) t.classList.remove('speaking');
+  // 反问环节结束语说完 → 直接收尾生成报告
+  if (state.autoFinishAfterSpeech) {
+    state.autoFinishAfterSpeech = false;
+    finishInterview(true);
+    return;
+  }
+  // 说完 → 稍等 0.6s（避开回声）自动开麦收音
+  $('mic-status').textContent = '🎙 面试官说完了，正在为你开麦…';
+  scheduleAutoListen(600);
 }
 
 /* ---------------- 结束会议与报告 ---------------- */
@@ -906,6 +1006,8 @@ function cleanupMeeting() {
   stopBargeInWatch();
   skipThink();
   try { speechSynthesis.cancel(); } catch {}
+  aiSpeakingNow = false;
+  clearTimeout(ttsWatchdog); clearInterval(ttsResumeTimer);
   quietStopListening();
   clearTimeout(aiSpeakTimer); clearTimeout(aiCaptionTimer);
   setMeSpeaking(false);

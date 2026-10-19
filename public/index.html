@@ -106,6 +106,7 @@
         <button id="pj-mic-btn" class="pj-dev on" onclick="prejoinToggleMic()"><i>🎙</i><span>麦克风</span></button>
         <button id="pj-cam-btn" class="pj-dev on" onclick="prejoinToggleCam()"><i>🎥</i><span>摄像头</span></button>
         <button class="pj-dev" onclick="prejoinTestSpeaker()"><i>🔊</i><span>扬声器测试</span></button>
+        <button class="pj-dev" id="pj-voice-btn" onclick="voiceSelfTest()"><i>🗣</i><span>识别测试</span></button>
         <div class="pj-meter">
           <span>输入音量</span>
           <div class="meter"><i id="pj-meter-fill"></i></div>
@@ -125,6 +126,7 @@
         <div><span>面试模式</span><b id="pj-mode">视频面试</b></div>
       </div>
       <p class="pj-hint" id="pj-hint">💡 建议佩戴耳机、保持环境安静、正对摄像头；AI 面试官会实时分析你的仪态与表达。</p>
+      <div id="pj-voice-result" class="pj-voice-result hidden"></div>
       <button id="pj-join" class="btn primary lg full" onclick="joinMeeting()">加入会议</button>
       <button class="btn ghost full" style="margin-top:8px" onclick="leavePrejoin()">返回岗位选择</button>
     </aside>

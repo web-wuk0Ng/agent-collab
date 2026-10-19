@@ -389,3 +389,11 @@ table.rep-table th { color: var(--ink-2); font-weight: 600; font-size: 12.5px; }
 }
 .tile-ai.speaking .ai-avatar { box-shadow: 0 0 0 3px rgba(110,160,255,.55), 0 0 34px rgba(110,160,255,.35); }
 .ai-avatar { transition: box-shadow .25s; }
+
+/* ---------- 会前语音识别自检 ---------- */
+.pj-voice-result {
+  margin: 10px 0 0; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.6;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #e8ecf4;
+}
+.pj-voice-result b { color: #ffd166; }
+.vr-live { color: #7ee787; }
