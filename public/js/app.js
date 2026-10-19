@@ -157,6 +157,11 @@ async function prejoinPrepare(mode) {
     $('pj-hint').textContent = '⌨ 文字面试模式：无需麦克风与摄像头，直接加入会议即可开始作答。';
     return;
   }
+  // 浏览器诊断：Chrome 的在线语音识别走 Google 服务，在国内常不稳定甚至无结果
+  const ua = navigator.userAgent;
+  if (/Chrome\//.test(ua) && !/Edg\//.test(ua)) {
+    $('pj-hint').textContent += ' ⚠️ 检测到你在用 Chrome：它的语音识别服务在国内可能很慢甚至无响应，强烈建议改用 Edge 浏览器进行语音面试。';
+  }
   await startMicMeter();
   if (mode === 'video') await prejoinCameraOn();
 }
@@ -447,12 +452,15 @@ async function submitAnswer(fromVoice) {
  *  2) 识别快：interimResults 实时上屏；Chrome 因静音自动断流时 250ms 内无缝续听
  *  3) 智能回合交接：停顿几秒后由面试官 AI 判断你是说完了（进入下一环节）
  *     还是卡住了（说一句引导语帮你继续），绝不机械地按停顿打断你
+ *  4) 可打断：面试官说话时你直接开口即可插话（检测到持续人声立即停播并开麦）
  */
 let recog = null;
-let listenState = null;   // { baseLen, auto, stopped, lastSpeech, restartTimer }
+let listenState = null;   // { baseLen, auto, stopped, lastSpeech, restartTimer, gotResult, noResultTimer }
 let aiSpeakingNow = false;
 let turnCheckTimer = null;
 let turnChecking = false;
+let bargeRaf = null;      // 打断检测（面试官说话期间的人声监听）
+let levelRaf = null;      // 收音音量条动画
 const TURN_CHECK_IDLE_MS = 5000;   // 有内容时停顿 5 秒触发面试官判断
 const TURN_CHECK_EMPTY_MS = 9000;  // 一直没开口，9 秒后面试官主动鼓励
 const TURN_NUDGE_MAX = 3;          // 每道题面试官最多主动引导 3 次，之后安静等你
@@ -461,6 +469,63 @@ function micBtnUI(rec) {
   const b = $('btn-mic');
   b.classList.toggle('rec', !!rec);
   b.textContent = rec ? '🔴' : '🎙';
+}
+
+/** 当前麦克风音量（RMS 0~1），复用会前检测建立的 AudioContext */
+function micRms() {
+  if (!micAnalyser) return 0;
+  const buf = new Uint8Array(micAnalyser.fftSize);
+  micAnalyser.getByteTimeDomainData(buf);
+  let sum = 0;
+  for (let i = 0; i < buf.length; i++) { const d = (buf[i] - 128) / 128; sum += d * d; }
+  return Math.sqrt(sum / buf.length);
+}
+
+/** 收音音量条：让你一眼看到"麦克风确实在收你的声音" */
+function startMicLevel() {
+  if (!micAnalyser) return;
+  const bar = $('mic-level');
+  bar.classList.remove('hidden');
+  cancelAnimationFrame(levelRaf);
+  const tick = () => {
+    if (!recog) { bar.classList.add('hidden'); levelRaf = null; return; }
+    bar.firstElementChild.style.width = Math.min(100, Math.round(micRms() * 320)) + '%';
+    levelRaf = requestAnimationFrame(tick);
+  };
+  levelRaf = requestAnimationFrame(tick);
+}
+
+/** 打断面试官：面试官语音播放期间监听人声，持续说话 ≥450ms 即停播并开麦 */
+function startBargeInWatch() {
+  stopBargeInWatch();
+  if (!micAnalyser || !micStream || micMuted || !micOn) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  const startAt = Date.now();
+  let hotMs = 0, prev = performance.now();
+  const tick = () => {
+    if (!aiSpeakingNow) { bargeRaf = null; return; }
+    const now = performance.now();
+    // 前 800ms 不检测，给扬声器回声留出余量；建议佩戴耳机
+    if (Date.now() - startAt > 800) {
+      if (micRms() > 0.05) hotMs += now - prev; else hotMs = Math.max(0, hotMs - (now - prev) * 1.5);
+      if (hotMs > 450) { bargeRaf = null; interruptInterviewer(); return; }
+    }
+    prev = now;
+    bargeRaf = requestAnimationFrame(tick);
+  };
+  bargeRaf = requestAnimationFrame(tick);
+}
+function stopBargeInWatch() { if (bargeRaf) { cancelAnimationFrame(bargeRaf); bargeRaf = null; } }
+
+function interruptInterviewer() {
+  speechSynthesis.cancel();
+  aiSpeakingNow = false;
+  $('tile-ai').classList.remove('speaking');
+  $('ai-caption').classList.add('hidden');
+  clearTimeout(aiSpeakTimer); clearTimeout(aiCaptionTimer);
+  startListening({ auto: true });
+  $('mic-status').textContent = '🎙 已打断面试官，请讲';
 }
 
 function toggleMic() {
@@ -478,8 +543,8 @@ function startListening({ auto = false } = {}) {
   const input = $('answer-input');
   listenState = {
     baseLen: input.value.length,
-    auto, stopped: false,
-    lastSpeech: Date.now(), restartTimer: null
+    auto, stopped: false, gotResult: false,
+    lastSpeech: Date.now(), restartTimer: null, noResultTimer: null
   };
   if (!state.voiceSession || state.voiceSession.endTime) state.voiceSession = { startTime: Date.now(), used: true };
 
@@ -496,10 +561,22 @@ function startListening({ auto = false } = {}) {
       ? '🎙 已自动开麦，请直接开口作答（停顿没关系，面试官会听你讲完）'
       : '🔴 正在聆听…请开始作答（再次点击麦克风或「发送」提交）';
     setMeSpeaking(true);
+    startMicLevel();
     scheduleTurnCheck();
+    // 诊断：开麦 6 秒无任何识别结果（且麦克风确实收得到声音）→ 大概率是浏览器在线识别服务不可用
+    clearTimeout(listenState.noResultTimer);
+    listenState.noResultTimer = setTimeout(() => {
+      if (recog && listenState && !listenState.stopped && !listenState.gotResult) {
+        $('mic-status').textContent = '⚠️ 已开麦但未收到识别结果：当前浏览器的在线语音识别可能不可用。建议改用 Edge（识别更快更稳），或点击输入框打字作答';
+      }
+    }, 6000);
   };
 
   r.onresult = e => {
+    if (!listenState.gotResult) {
+      listenState.gotResult = true;
+      clearTimeout(listenState.noResultTimer);   // 识别服务正常，撤掉诊断提示
+    }
     let interim = '', final = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const t = e.results[i][0].transcript;
@@ -545,6 +622,7 @@ function userStopListening() {
   if (listenState) {
     listenState.stopped = true;
     clearTimeout(listenState.restartTimer);
+    clearTimeout(listenState.noResultTimer);
     clearTimeout(turnCheckTimer);
   }
   if (recog) { try { recog.stop(); } catch {} }
@@ -556,6 +634,7 @@ function quietStopListening(keepVoice) {
   if (listenState) {
     listenState.stopped = true;
     clearTimeout(listenState.restartTimer);
+    clearTimeout(listenState.noResultTimer);
     clearTimeout(turnCheckTimer);
   }
   if (recog) { try { recog.stop(); } catch {} }
@@ -704,8 +783,10 @@ function speakText(text) {
     const vs = speechSynthesis.getVoices().filter(v => v.lang.startsWith('zh'));
     if (vs.length) u.voice = vs[0];
     aiSpeakingNow = true;
+    startBargeInWatch();   // 播放期间允许候选人直接开口打断
     const done = () => {
       aiSpeakingNow = false;
+      stopBargeInWatch();
       const t = $('tile-ai'); if (t) t.classList.remove('speaking');
       // 说完 → 稍等 0.6s（避开回声）自动开麦收音
       scheduleAutoListen(600);
@@ -723,6 +804,7 @@ function speakText(text) {
 function cleanupMeeting() {
   stopCallTimer();
   stopMicMeter();
+  stopBargeInWatch();
   try { speechSynthesis.cancel(); } catch {}
   quietStopListening();
   clearTimeout(aiSpeakTimer); clearTimeout(aiCaptionTimer);

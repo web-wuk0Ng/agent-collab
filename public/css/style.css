@@ -374,3 +374,18 @@ table.rep-table th { color: var(--ink-2); font-weight: 600; font-size: 12.5px; }
   65% { transform: translateY(-.9px) rotate(-.35deg); }
 }
 @keyframes avBreathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.015); } }
+
+/* ---------- 收音音量条 ---------- */
+.mic-level { height: 5px; background: rgba(255,255,255,.12); border-radius: 3px; margin: 8px 0 2px; overflow: hidden; }
+.mic-level i { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, #3fb950, #7ee787); transition: width .08s linear; }
+
+/* ---------- 真人数字人面试官 ---------- */
+.ai-avatar { width: 176px; height: 176px; overflow: hidden; padding: 0; }
+.iv-photo { width: 100%; height: 100%; object-fit: cover; object-position: center 14%; border-radius: 50%; display: block; }
+.tile-ai.speaking .iv-photo { animation: ivTalkPulse 1.1s ease-in-out infinite; }
+@keyframes ivTalkPulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.02); filter: brightness(1.07); }
+}
+.tile-ai.speaking .ai-avatar { box-shadow: 0 0 0 3px rgba(110,160,255,.55), 0 0 34px rgba(110,160,255,.35); }
+.ai-avatar { transition: box-shadow .25s; }
