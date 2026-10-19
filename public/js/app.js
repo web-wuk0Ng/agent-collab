@@ -6,17 +6,17 @@ const API = (path, body) => fetch(path, body ? {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
 } : undefined).then(async r => {
   const j = await r.json();
-  if (!r.ok) throw new Error(j.error || '请求失败');
+  if (!r.ok) { const e = new Error(j.error || '请求失败'); e.code = j.code || ''; e.status = r.status; throw e; }
   return j;
 });
-// 管理员 API：附带口令头
+// 管理员 API：附带登录时签发的会话 token（口令不再随请求重传）
 const AAPI = (path, body) => fetch(path, {
   method: body ? 'POST' : 'GET',
-  headers: { 'Content-Type': 'application/json', 'x-admin-pass': sessionStorage.adminPass || '' },
+  headers: { 'Content-Type': 'application/json', 'x-admin-token': sessionStorage.adminToken || '' },
   body: body ? JSON.stringify(body) : undefined
 }).then(async r => {
   const j = await r.json();
-  if (!r.ok) throw new Error(j.error || '请求失败');
+  if (!r.ok) { const e = new Error(j.error || '请求失败'); e.code = j.code || ''; e.status = r.status; throw e; }
   return j;
 });
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -60,6 +60,8 @@ async function login() {
     $('setup-card').classList.remove('hidden');
     await loadPositions();
     toast(`欢迎，${user.name}！选择一个岗位开始练习`);
+    // 企业级门禁：AI 模拟面试必须先完成大模型配置
+    if (!(await ensureAIReady())) { toast('开始面试前，请先完成 AI 面试官配置'); openAISettings(true); }
   } catch (e) { toast(e.message); }
 }
 function logout() { location.reload(); }
@@ -121,7 +123,11 @@ async function startInterview() {
     showPrejoin();
     go('interview');
     await prejoinPrepare(mode);
-  } catch (e) { toast(e.message); }
+  } catch (e) {
+    toast(e.message);
+    // 企业级门禁：AI 未配置时直接拉起配置向导
+    if (e.code === 'AI_NOT_CONFIGURED' || e.status === 428) openAISettings(true);
+  }
   finally { $('btn-start').disabled = false; }
 }
 
@@ -749,16 +755,38 @@ async function refreshAgentStatus() {
       : `❌ 未连接（${esc(s.url || '')}）：${esc(s.error || '')}`;
   } catch (e) { box.textContent = '探测失败：' + e.message; }
 }
-async function openAISettings() {
+/** AI 就绪检查：已配置（llm 引擎已填模型，或 python 服务可用）返回 true */
+async function ensureAIReady() {
+  let cfg;
+  try { cfg = await API('/api/ai-config'); } catch { return false; }
+  updateAIBadge(cfg);
+  const ready = cfg.engine === 'python' ? true : cfg.engine === 'llm' && !!cfg.configured;
+  const bar = $('ai-warn-bar');
+  if (bar) bar.classList.toggle('hidden', ready);
+  return ready;
+}
+
+/** DeepSeek 快速填入：只需粘贴自己的 API Key */
+function fillDeepSeek() {
+  $('cfg-engine').value = 'llm';
+  $('cfg-url').value = 'https://api.deepseek.com';
+  $('cfg-model').value = 'deepseek-chat';
+  onEngineChange();
+  $('cfg-key').focus();
+  $('ai-test-detail').textContent = '已填入 DeepSeek 官方接口地址与模型名，只需粘贴你的 API Key（platform.deepseek.com 申请）。';
+}
+
+async function openAISettings(gated) {
   const cfg = await API('/api/ai-config');
   $('cfg-engine').value = cfg.engine || 'offline';
   $('cfg-url').value = cfg.baseUrl || '';
   $('cfg-model').value = cfg.model || '';
   $('cfg-key').value = '';
-  $('cfg-key').placeholder = cfg.hasKey ? '已保存（输入新值可覆盖）' : 'sk-…（仅保存在本机）';
+  $('cfg-key').placeholder = cfg.hasKey ? '已保存（输入新值可覆盖）' : 'sk-…（仅保存在本机，不会上传）';
   $('cfg-agent-url').value = cfg.agentUrl || '';
   $('ai-test-result').textContent = '';
   $('ai-test-detail').textContent = '';
+  $('ai-gate-tip').classList.toggle('hidden', !gated);
   onEngineChange();
   $('ai-modal').classList.remove('hidden');
 }
@@ -773,6 +801,7 @@ async function saveAISettings() {
       agentUrl: $('cfg-agent-url').value.trim()
     });
     updateAIBadge(cfg);
+    await ensureAIReady();
     toast(cfg.engine === 'python' ? '已切换为 Python 面试官 Agent 引擎 🐍'
       : cfg.engine === 'llm' ? '已接入大模型 ✅' : '已保存（当前为离线演示模式）');
   } catch (e) { toast(e.message); }
@@ -810,7 +839,7 @@ const DIM_NAMES = { content: '技术正确性', depth: '知识深度', logic: '�
 function goAdmin() {
   go('admin');
   adminTab('dash');
-  if (!sessionStorage.adminPass) {
+  if (!sessionStorage.adminToken) {
     $('admin-login').classList.remove('hidden');
     $('admin-dash').classList.add('hidden');
   } else {
@@ -820,20 +849,35 @@ function goAdmin() {
 
 async function adminLogin() {
   const pass = $('admin-pass').value;
-  const { ok } = await API('/api/admin/login', { passcode: pass });
-  if (!ok) { $('admin-login-err').textContent = '口令错误'; return; }
-  sessionStorage.adminPass = pass;
-  $('admin-login').classList.add('hidden');
-  loadDash();
+  try {
+    const { ok, token } = await API('/api/admin/login', { passcode: pass });
+    if (!ok || !token) { $('admin-login-err').textContent = '口令错误'; return; }
+    sessionStorage.adminToken = token;
+    $('admin-pass').value = '';
+    $('admin-login').classList.add('hidden');
+    loadDash();
+  } catch (e) { $('admin-login-err').textContent = e.message; }
 }
 
 function adminTab(tab) {
   document.querySelectorAll('#view-admin .btn.tab').forEach(b => b.classList.toggle('active', b.dataset.atab === tab));
-  for (const t of ['dash', 'students', 'bank']) $('atab-' + t).classList.toggle('hidden', t !== tab);
-  if (!sessionStorage.adminPass) { $('admin-login').classList.remove('hidden'); $('admin-dash').classList.add('hidden'); return; }
+  for (const t of ['dash', 'students', 'bank', 'audits']) $('atab-' + t).classList.toggle('hidden', t !== tab);
+  if (!sessionStorage.adminToken) { $('admin-login').classList.remove('hidden'); $('admin-dash').classList.add('hidden'); return; }
   if (tab === 'dash') loadDash();
   if (tab === 'students') loadStudents();
   if (tab === 'bank') loadBankTab();
+  if (tab === 'audits') loadAudits();
+}
+
+async function loadAudits() {
+  try {
+    const { list } = await AAPI('/api/admin/audits');
+    const NAME = { 'user.register': '学员注册', 'interview.finish': '面试完成', 'admin.login.ok': '管理员登录', 'admin.login.fail': '登录失败' };
+    $('atab-audits').innerHTML = `<div class="card"><h2>🛡 操作审计（最近 ${list.length} 条）</h2>
+      ${list.length ? `<table class="rep-table"><tr><th>时间</th><th>操作</th><th>详情</th></tr>
+        ${list.map(a => `<tr><td class="muted">${new Date(a.at).toLocaleString('zh-CN')}</td><td>${esc(NAME[a.action] || a.action)}</td><td class="muted">${esc(a.detail || '-')}</td></tr>`).join('')}</table>`
+      : '<div class="empty">暂无审计记录</div>'}</div>`;
+  } catch (e) { toast(e.message); }
 }
 
 async function loadDash() {
@@ -866,7 +910,7 @@ async function loadDash() {
           ${s.recent.map(r => `<tr><td>${esc(r.user)}</td><td>${esc(posName(r.position))}</td><td><b class="${scoreClass(r.overall)}">${r.overall}</b></td><td class="muted">${new Date(r.at).toLocaleString('zh-CN')}</td></tr>`).join('')}</table>` : '<div class="empty">暂无数据</div>'}
       </div>`;
   } catch (e) {
-    sessionStorage.removeItem('adminPass');
+    sessionStorage.removeItem('adminToken');
     $('admin-login').classList.remove('hidden');
     $('admin-login-err').textContent = e.message;
   }
@@ -944,10 +988,7 @@ async function adminExport() {
 
 /* ---------------- 初始化 ---------------- */
 (async function init() {
-  try {
-    const cfg = await API('/api/ai-config');
-    updateAIBadge(cfg);
-  } catch {}
+  try { await ensureAIReady(); } catch {}
   $('answer-input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitAnswer();
   });

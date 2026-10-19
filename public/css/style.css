@@ -341,3 +341,12 @@ table.rep-table th { color: var(--ink-2); font-weight: 600; font-size: 12.5px; }
 .jd-box { width: 100%; margin: 4px 0 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: #fbfcfe; }
 .jd-box summary { cursor: pointer; color: var(--primary); font-weight: 600; font-size: 14px; }
 .jd-box textarea { width: 100%; margin-top: 10px; }
+
+/* ---------- AI 配置门禁提示条 ---------- */
+.ai-warn {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: #fff7e6; border: 1px solid #f0c36d; color: #6b4a00;
+  border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; font-size: 14px;
+}
+.modal-box .ai-warn { margin-bottom: 4px; }
+.ai-warn .btn { margin-left: auto; }

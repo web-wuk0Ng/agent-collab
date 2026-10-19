@@ -35,9 +35,28 @@ cd agent-collab
 
 > - 视频面试 / 语音作答建议用 **Chrome / Edge**，浏览器弹窗点「允许」即可
 > - 需要数据库吗？**不需要**。需要 `npm install` 吗？**不需要**（零第三方依赖）
-> - 不配置大模型也能完整体验：内置离线演示引擎兜底
+> - ⚠️ **AI 模拟面试必须先配置大模型**：首次进入会自动弹出「AI 设置」，填入 Base URL / API Key / 模型名并测试通过即可（支持 DeepSeek / 智谱 / 通义 / OpenAI 等 OpenAI 兼容接口，弹窗内可一键填入 DeepSeek 官方参数）。API Key **仅保存在本机** `data/config.local.json`（已被 Git 忽略，永不入库、永不上传）
+> - 离线演示模式仅用于体验界面流程，不产生 AI 对话与评估
 
 ---
+
+## 🔐 企业级特性
+
+- **AI 接入门禁**：未配置大模型时，服务端直接拒绝开始面试（HTTP 428 + 引导），杜绝"看起来能 AI 实际是脚本"的假体验
+- **密钥安全**：Key 只落本机、接口永不回传（仅 `hasKey` 布尔）、全 Git 历史可检索验证零泄露
+- **数据库可靠性**：原子写（tmp+rename）· 写前 `.bak` 备份 · 启动损坏自愈 · 每日快照（保留 7 份）· Schema 版本迁移 · 内存索引 · 写合并
+- **安全加固**：管理员口令加盐哈希存储 + 2 小时会话令牌 + 登录限流（5 次/10 分钟）· 操作审计（最近 200 条）· CORS 同源白名单 · 前端全量 HTML 转义
+- **可观测性**：`GET /api/health` 一键查看 AI 引擎与数据库状态
+
+## 🧪 测试
+
+```bash
+node test/llm-e2e.js java-backend 4   # AI 全流程实测（需已配置大模型）
+node test/ai-safety.js                # AI 安全/边界实验：提示注入、幻觉、空回答
+cd python-agent && python -m pytest   # Python Agent 回归（31 例）
+```
+
+详见 [docs/测试文档.md](docs/测试文档.md)（含提示注入 / 幻觉实验的真实执行记录：注入攻击下综合分 6 分、虚构技术被报告点名「使用虚构技术名词」）。
 
 ## 🤖 进阶：启动 Python AI 面试官 Agent（可选）
 
@@ -74,6 +93,7 @@ uvicorn app:app --reload --port 8000
 | 文档 | 内容 |
 |---|---|
 | [docs/项目说明.md](docs/项目说明.md) | 完整功能清单、技术栈、AI 使用说明、API 一览、FAQ |
+| [docs/测试文档.md](docs/测试文档.md) | 功能测试用例表、AI 安全边界实验（提示注入/幻觉）、数据可靠性实验、复现步骤 |
 | [docs/演示视频脚本.md](docs/演示视频脚本.md) | 3–5 分钟原型演示分镜脚本（含录制检查清单） |
 | [docs/团队协作指南.md](docs/团队协作指南.md) | 0 基础同学也能照抄的 Git 协作流程（分支模型 / PR / 急救包） |
 | [docs/git-cheatsheet.md](docs/git-cheatsheet.md) | Git 常用命令速查表 |

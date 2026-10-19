@@ -48,6 +48,9 @@
 
   <section id="setup-card" class="card hidden">
     <h2>选择目标岗位</h2>
+    <div id="ai-warn-bar" class="ai-warn hidden">
+      ⚠️ <b>AI 面试官尚未配置</b> —— 正式使用 AI 模拟面试前，需要先在「AI 设置」中接入大模型（填入 API Key 并测试通过）。<button class="btn sm primary" onclick="openAISettings(true)">立即配置 →</button>
+    </div>
     <div id="position-list" class="pos-grid"></div>
     <div class="row setup-opts">
       <label>面试轮次
@@ -272,6 +275,7 @@
     <button class="btn tab active" data-atab="dash" onclick="adminTab('dash')">📊 数据看板</button>
     <button class="btn tab" data-atab="students" onclick="adminTab('students')">👥 学员管理</button>
     <button class="btn tab" data-atab="bank" onclick="adminTab('bank')">📚 题库管理</button>
+    <button class="btn tab" data-atab="audits" onclick="adminTab('audits')">🛡 操作审计</button>
     <span class="flex1"></span>
     <button class="btn ghost sm" onclick="adminExport()">⬇ 导出 CSV</button>
   </div>
@@ -279,7 +283,8 @@
   <section id="atab-dash">
     <div id="admin-login" class="card center-card hidden">
       <h2>🏫 管理中心登录</h2>
-      <p class="muted">面向就业指导教师 / 企业 HR，默认口令 mockmirror2026（可在 data/db.json 修改）</p>
+      <p class="muted">面向就业指导教师 / 企业 HR。口令加盐哈希存储于服务端，登录后签发 2 小时会话令牌（5 次失败将锁定 10 分钟）。</p>
+      <p class="muted small">默认口令 mockmirror2026，可用环境变量 ADMIN_PASS 或 data/db.json（哈希）修改</p>
       <div class="row" style="justify-content:center;margin-top:14px">
         <input id="admin-pass" type="password" placeholder="管理员口令" onkeydown="if(event.key==='Enter')adminLogin()">
         <button class="btn primary" onclick="adminLogin()">登录</button>
@@ -290,6 +295,8 @@
   </section>
 
   <section id="atab-students" class="hidden"></section>
+
+  <section id="atab-audits" class="hidden"></section>
 
   <section id="atab-bank" class="hidden">
     <div class="card">
@@ -316,19 +323,26 @@
 <!-- ============ AI 设置弹窗 ============ -->
 <div id="ai-modal" class="modal hidden" onclick="if(event.target===this)closeAISettings()">
   <div class="modal-box card">
+    <div id="ai-gate-tip" class="ai-warn hidden">
+      🔐 <b>使用 AI 模拟面试前必须完成本配置</b>：填入大模型接口信息并「测试连接」通过。API Key 仅保存在本机 <code>data/config.local.json</code>（已被 Git 忽略，永不上传）。
+    </div>
     <h2>⚙ AI 引擎设置</h2>
-    <p class="muted">三种引擎任选：<b>离线演示引擎</b>（零配置）· <b>大模型直连</b>（任意 OpenAI 兼容接口）· <b>Python 面试官 Agent</b>（本仓库 <code>python-agent/</code> 的 FastAPI 服务）。</p>
+    <p class="muted">两种正式引擎：<b>大模型直连</b>（任意 OpenAI 兼容接口）· <b>Python 面试官 Agent</b>（本仓库 <code>python-agent/</code> 的 FastAPI 服务）。<b>离线演示引擎</b>仅用于体验界面流程，不产生 AI 对话与评估。</p>
     <label>AI 引擎
       <select id="cfg-engine" onchange="onEngineChange()">
-        <option value="offline">离线演示引擎（零配置，随时可用）</option>
-        <option value="llm">大模型直连（智谱 / DeepSeek / 通义 / OpenAI …）</option>
+        <option value="llm">大模型直连（DeepSeek / 智谱 / 通义 / OpenAI …）</option>
         <option value="python">Python 面试官 Agent（python-agent 服务）</option>
+        <option value="offline">离线演示模式（无 AI 对话，仅体验流程）</option>
       </select>
     </label>
     <div id="cfg-llm-fields">
-      <label>Base URL（以 /v1 结尾）<input id="cfg-url" placeholder="https://open.bigmodel.cn/api/paas/v4"></label>
-      <label>API Key<input id="cfg-key" type="password" placeholder="sk-…（仅保存在本机）"></label>
-      <label>模型名称<input id="cfg-model" placeholder="glm-4-flash / deepseek-chat / qwen-plus"></label>
+      <div class="row" style="align-items:center;gap:8px;margin-bottom:6px">
+        <button class="btn ghost sm" onclick="fillDeepSeek()">⚡ 一键填入 DeepSeek 官方接口</button>
+        <span class="muted small">填好后再粘贴自己的 API Key</span>
+      </div>
+      <label>Base URL<input id="cfg-url" placeholder="https://api.deepseek.com"></label>
+      <label>API Key<input id="cfg-key" type="password" placeholder="sk-…（仅保存在本机，不会上传）"></label>
+      <label>模型名称<input id="cfg-model" placeholder="deepseek-chat / glm-4-flash / qwen-plus"></label>
     </div>
     <div id="cfg-agent-fields" class="hidden">
       <label>Agent 服务地址<input id="cfg-agent-url" placeholder="http://127.0.0.1:8000"></label>
