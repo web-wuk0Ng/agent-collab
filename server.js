@@ -176,6 +176,13 @@ const routes = {
     return result;
   },
 
+  // 智能回合判断：候选人语音停顿后，面试官判断"说完了还是卡住了"（不写入会话数据）
+  'POST /api/interview/turn-check': async (p) => {
+    const s = db.getSession(p.sessionId);
+    if (!s || s.status !== 'ongoing') throw new Error('面试会话不存在或已结束');
+    return await interview.turnCheck(s, p);
+  },
+
   // 结束面试并生成评估报告
   'POST /api/interview/finish': async (p) => {
     const s = db.getSession(p.sessionId);

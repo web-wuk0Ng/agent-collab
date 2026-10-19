@@ -109,6 +109,7 @@ async function startInterview() {
     });
     state.session = { id: r.sessionId, mode, currentQ: { ...r.question, index: 0 } };
     state.mtgId = newMeetingId();
+    state.nudgeCount = 0;
     pending = { greeting: r.greeting, question: r.question, planSize: r.planSize, jdApplied: r.jdApplied };
     const pos = state.positions.find(p => p.id === state.posId);
     // 会前设备检测页信息
@@ -398,7 +399,7 @@ async function submitAnswer(fromVoice) {
   if (!text) return toast('请先说出或输入你的回答');
   if (!state.session) return;
 
-  // 语音自动发送：先安静地停掉收音，避免把面试官的话也录进去
+  // 语音自动提交（面试官判断已说完）：先安静地停掉收音，避免把面试官的话也录进去
   if (recog || listenState) quietStopListening();
 
   const metrics = collectMetrics(text);
@@ -415,6 +416,7 @@ async function submitAnswer(fromVoice) {
       metrics
     });
     hideTyping();
+    state.nudgeCount = 0;   // 进入下一环节，面试官引导次数清零
     if (r.followUp) {
       // 面试官追问，题目不变
       addMsg('ai', r.nextLine, true);
@@ -443,11 +445,17 @@ async function submitAnswer(fromVoice) {
  * 设计目标：
  *  1) 默认语音作答：面试官说完自动开麦（auto-mic 开关可关）
  *  2) 识别快：interimResults 实时上屏；Chrome 因静音自动断流时 250ms 内无缝续听
- *  3) 自动发送：检测到停顿约 2.4 秒且已有实质内容 → 自动提交，无需点按钮
+ *  3) 智能回合交接：停顿几秒后由面试官 AI 判断你是说完了（进入下一环节）
+ *     还是卡住了（说一句引导语帮你继续），绝不机械地按停顿打断你
  */
 let recog = null;
-let listenState = null;   // { baseLen, auto, stopped, hadSpeech, lastSpeech, idleTimer, restartTimer }
+let listenState = null;   // { baseLen, auto, stopped, lastSpeech, restartTimer }
 let aiSpeakingNow = false;
+let turnCheckTimer = null;
+let turnChecking = false;
+const TURN_CHECK_IDLE_MS = 5000;   // 有内容时停顿 5 秒触发面试官判断
+const TURN_CHECK_EMPTY_MS = 9000;  // 一直没开口，9 秒后面试官主动鼓励
+const TURN_NUDGE_MAX = 3;          // 每道题面试官最多主动引导 3 次，之后安静等你
 
 function micBtnUI(rec) {
   const b = $('btn-mic');
@@ -470,8 +478,8 @@ function startListening({ auto = false } = {}) {
   const input = $('answer-input');
   listenState = {
     baseLen: input.value.length,
-    auto, stopped: false, hadSpeech: false,
-    lastSpeech: Date.now(), idleTimer: null, restartTimer: null
+    auto, stopped: false,
+    lastSpeech: Date.now(), restartTimer: null
   };
   if (!state.voiceSession || state.voiceSession.endTime) state.voiceSession = { startTime: Date.now(), used: true };
 
@@ -485,9 +493,10 @@ function startListening({ auto = false } = {}) {
   r.onstart = () => {
     micBtnUI(true);
     $('mic-status').textContent = auto
-      ? '🎙 已自动开麦，直接开口作答；说完停顿约 2 秒自动发送'
-      : '🔴 正在聆听…请开始作答（再次点击麦克风结束）';
+      ? '🎙 已自动开麦，请直接开口作答（停顿没关系，面试官会听你讲完）'
+      : '🔴 正在聆听…请开始作答（再次点击麦克风或「发送」提交）';
     setMeSpeaking(true);
+    scheduleTurnCheck();
   };
 
   r.onresult = e => {
@@ -500,12 +509,9 @@ function startListening({ auto = false } = {}) {
       input.value += final;
       listenState.baseLen = input.value.length;
     }
-    if (final || interim) {
-      listenState.lastSpeech = Date.now();
-      listenState.hadSpeech = true;
-    }
+    if (final || interim) listenState.lastSpeech = Date.now();
     $('mic-status').textContent = '🔴 聆听中：' + (input.value.slice(listenState.baseLen) + interim).slice(-60);
-    armSilenceCheck();
+    scheduleTurnCheck();
   };
 
   r.onerror = e => {
@@ -538,24 +544,26 @@ function startListening({ auto = false } = {}) {
 function userStopListening() {
   if (listenState) {
     listenState.stopped = true;
-    clearTimeout(listenState.idleTimer);
     clearTimeout(listenState.restartTimer);
+    clearTimeout(turnCheckTimer);
   }
   if (recog) { try { recog.stop(); } catch {} }
   micBtnUI(false);
   finishListenUI('已停止收音。可以继续补充或点击「发送」提交');
 }
 
-function quietStopListening() {
+function quietStopListening(keepVoice) {
   if (listenState) {
     listenState.stopped = true;
-    clearTimeout(listenState.idleTimer);
     clearTimeout(listenState.restartTimer);
+    clearTimeout(turnCheckTimer);
   }
   if (recog) { try { recog.stop(); } catch {} }
   recog = null;
   micBtnUI(false);
   setMeSpeaking(false);
+  // keepVoice=true（面试官插话引导）：保留语速统计起点，等候选人继续
+  if (!keepVoice && state.voiceSession) state.voiceSession.endTime = Date.now();
 }
 
 function finishListenUI(msg) {
@@ -564,24 +572,50 @@ function finishListenUI(msg) {
   setMeSpeaking(false);
 }
 
-/** 停顿自动发送：每 600ms 检查一次；停顿 ≥2.4s 且有实质内容 → 自动提交 */
-function armSilenceCheck() {
+/** 面试官智能回合判断：停顿时把当前回答发给后端，由面试官 AI 决定"说完了"还是"卡住了" */
+function scheduleTurnCheck() {
   if (!listenState || listenState.stopped) return;
-  clearTimeout(listenState.idleTimer);
-  listenState.idleTimer = setTimeout(() => {
-    if (!recog || !listenState || listenState.stopped) return;
-    const autoOn = $('auto-mic') && $('auto-mic').checked;
-    const len = $('answer-input').value.trim().length;
-    const idle = Date.now() - listenState.lastSpeech;
-    if (autoOn && listenState.hadSpeech && len >= 4 && idle >= 2400) {
-      submitAnswer(true);
-    } else if (autoOn && listenState.hadSpeech && len >= 4 && idle >= 1200) {
-      $('mic-status').textContent = `⏳ 已检测到停顿，约 ${Math.ceil((2400 - idle) / 1000)} 秒后自动发送（继续说话可取消）`;
-      armSilenceCheck();
+  clearTimeout(turnCheckTimer);
+  const hasContent = $('answer-input').value.trim().length >= 4;
+  const wait = hasContent ? TURN_CHECK_IDLE_MS : TURN_CHECK_EMPTY_MS;
+  turnCheckTimer = setTimeout(runTurnCheck, wait);
+}
+
+async function runTurnCheck() {
+  if (!recog || !listenState || listenState.stopped || turnChecking || aiSpeakingNow) return;
+  const hasContent = $('answer-input').value.trim().length >= 4;
+  const idle = Date.now() - listenState.lastSpeech;
+  const need = hasContent ? TURN_CHECK_IDLE_MS : TURN_CHECK_EMPTY_MS;
+  if (idle < need - 300) { scheduleTurnCheck(); return; }      // 用户还在说/刚又说了一句
+  if ((state.nudgeCount || 0) >= TURN_NUDGE_MAX) {
+    $('mic-status').textContent = '🔴 仍在聆听。如果说完了，点击「发送」或再点一次 🎙 提交';
+    return;                                                     // 引导次数用完，安静等待
+  }
+  turnChecking = true;
+  const text = $('answer-input').value.trim();
+  const lastAt = listenState.lastSpeech;                        // 快照：判断期间用户若又开口则作废
+  $('mic-status').textContent = '🤔 面试官在听你刚才说的…';
+  try {
+    const r = await API('/api/interview/turn-check', {
+      sessionId: state.session.id,
+      qIndex: state.session.currentQ.index,
+      answer: text
+    });
+    if (!listenState || listenState.stopped || !recog) return;
+    if (listenState.lastSpeech !== lastAt) { scheduleTurnCheck(); return; } // 你又开口了，继续听
+    if (r.finished && text.length >= 4) {
+      submitAnswer(true);                                        // 面试官判断你说完了 → 正常进入下一环节
     } else {
-      armSilenceCheck();
+      // 面试官觉得你没说完/卡住了 → 说一句引导语，说完自动重新开麦
+      state.nudgeCount = (state.nudgeCount || 0) + 1;
+      quietStopListening(true);                                  // 暂停收音，避免把面试官的话录进你的回答
+      addMsg('ai', r.nudge, true);
     }
-  }, 600);
+  } catch {
+    scheduleTurnCheck();                                         // 网络抖动：过一会再判断
+  } finally {
+    turnChecking = false;
+  }
 }
 
 /** 面试官说完 → 自动开麦（语音优先的核心） */
@@ -1109,7 +1143,7 @@ async function adminExport() {
   $('answer-input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitAnswer();
   });
-  // 打字时视为仍在"说话"，避免停顿自动发送打断手动输入
+  // 打字时视为仍在"说话"，避免面试官在你编辑文字时插话判断
   $('answer-input').addEventListener('input', () => {
     if (listenState) listenState.lastSpeech = Date.now();
   });
