@@ -110,6 +110,11 @@ async function startInterview() {
     state.session = { id: r.sessionId, mode, currentQ: { ...r.question, index: 0 } };
     state.mtgId = newMeetingId();
     state.nudgeCount = 0;
+    state.reverseMode = false;
+    state.reverseCount = 0;
+    state.autoFinishAfterSpeech = false;
+    state.thinkUntil = null;
+    $('answer-input').placeholder = '面试官提问后直接开口作答，中途停顿没关系——面试官会判断你是否说完；也可以打字，或点「回答完毕」主动提交';
     pending = { greeting: r.greeting, question: r.question, planSize: r.planSize, jdApplied: r.jdApplied };
     const pos = state.positions.find(p => p.id === state.posId);
     // 会前设备检测页信息
@@ -282,6 +287,7 @@ async function joinMeeting() {
   updateProgress(0, pending.planSize);
   setCurrentQ(pending.question.text);
   addMsg('ai', pending.greeting + '\n\n' + pending.question.text, true);
+  startThinkCountdown(15);   // 第一题也给 15 秒思考时间
   if (pending.jdApplied) addMsg('sys', '🏢 本次面试题目已根据你粘贴的岗位 JD 由大模型定制生成');
 
   if (state.session.mode === 'video') {
@@ -334,10 +340,25 @@ function toggleMute() {
 }
 
 /* AI 面试官说话动画 + 实时字幕 */
+function setAvatarTalking(on) {
+  const v = $('iv-video'), img = $('iv-photo-img');
+  if (!v || !img) return;
+  if (on) {
+    img.classList.add('hidden');
+    v.classList.remove('hidden');
+    v.play().catch(() => {});
+  } else {
+    v.pause();
+    v.classList.add('hidden');
+    img.classList.remove('hidden');
+  }
+}
+
 function setAiSpeaking(text) {
   const tile = $('tile-ai');
   if (!tile) return;
   tile.classList.add('speaking');
+  setAvatarTalking(true);
   $('ai-badge').textContent = '正在提问';
   const cap = $('ai-caption');
   if (cap && text) {
@@ -346,7 +367,7 @@ function setAiSpeaking(text) {
   }
   clearTimeout(aiSpeakTimer); clearTimeout(aiCaptionTimer);
   const dur = Math.min(9000, 1500 + (text ? text.length * 60 : 0));
-  aiSpeakTimer = setTimeout(() => tile.classList.remove('speaking'), dur);
+  aiSpeakTimer = setTimeout(() => { tile.classList.remove('speaking'); setAvatarTalking(false); }, dur);
   if (cap) aiCaptionTimer = setTimeout(() => cap.classList.add('hidden'), dur + 2600);
 }
 
@@ -382,6 +403,7 @@ function addMsg(kind, text, speak = false) {
     setMeSpeaking(false);
     setAiSpeaking(text);
     if (speak && $('tts-on').checked) speakText(text);
+    else if (state.autoFinishAfterSpeech) { state.autoFinishAfterSpeech = false; setTimeout(() => finishInterview(true), 2200); }
     else scheduleAutoListen(900); // 未开 TTS 时也要自动收音
   }
   return div;
@@ -398,14 +420,52 @@ function showTyping() {
 }
 function hideTyping() { const t = $('typing'); if (t) t.remove(); }
 
+/* ===== 反问环节（对标大易六大板块：候选人向面试官提问，最多 3 轮） ===== */
+function enterReverseMode() {
+  state.reverseMode = true;
+  state.reverseCount = 0;
+  skipThink();
+  $('bar-status').textContent = '反问环节';
+  $('answer-input').placeholder = '轮到你了：有什么想反问面试官的？直接开口或打字（团队、岗位职责、技术栈、培养机制都可以）';
+  updateProgress(state.session.planSize || 0, state.session.planSize || 0);
+  addMsg('ai', '我的提问就到这里。按照面试惯例，最后留一点时间给你——你有什么想问我的吗？团队情况、岗位日常工作、技术栈都可以聊。', true);
+}
+
+async function askInterviewer(text) {
+  const sess = state.session;
+  const input = $('answer-input');
+  addMsg('me', text);
+  input.value = '';
+  showTyping();
+  try {
+    const r = await API('/api/interview/ask', { sessionId: sess.id, question: text });
+    hideTyping();
+    state.reverseCount++;
+    if (state.reverseCount >= 3) {
+      // 第 3 个问题回答完 → 面试官收尾 → 说完自动生成报告
+      state.autoFinishAfterSpeech = true;
+      addMsg('ai', r.reply + ' 时间关系，今天的面试就到这里。感谢你的参与，我正在为你生成评估报告。', true);
+      if (!$('tts-on').checked) setTimeout(() => finishInterview(true), 3000);
+    } else {
+      addMsg('ai', r.reply, true);
+    }
+  } catch (e) {
+    hideTyping();
+    toast(e.message);
+  }
+}
+
 async function submitAnswer(fromVoice) {
   const input = $('answer-input');
   const text = input.value.trim();
-  if (!text) return toast('请先说出或输入你的回答');
+  if (!text) return toast(state.reverseMode ? '请先说出或输入你想反问的问题' : '请先说出或输入你的回答');
   if (!state.session) return;
 
   // 语音自动提交（面试官判断已说完）：先安静地停掉收音，避免把面试官的话也录进去
   if (recog || listenState) quietStopListening();
+
+  // 反问环节：候选人提问，面试官回答
+  if (state.reverseMode) return askInterviewer(text);
 
   const metrics = collectMetrics(text);
   addMsg('me', text);
@@ -428,14 +488,14 @@ async function submitAnswer(fromVoice) {
       addMsg('sys', '⚡ AI 面试官针对你的回答进行了追问，请继续作答');
     } else if (r.done) {
       addMsg('ai', r.nextLine, true);
-      addMsg('sys', '🎉 面试结束！正在为你生成评估报告…');
-      await finishInterview(true);
+      enterReverseMode();          // 面试官提问环节结束 → 反问环节
       return;
     } else {
       addMsg('ai', r.nextLine, true);
       state.session.currentQ = r.question;
       setCurrentQ(r.question.text);
       updateProgress(r.progress.done, r.progress.total);
+      startThinkCountdown(15);     // 新题目 → 15 秒思考时间（对标 HireVue/大易）
     }
   } catch (e) {
     hideTyping();
@@ -521,6 +581,9 @@ function stopBargeInWatch() { if (bargeRaf) { cancelAnimationFrame(bargeRaf); ba
 function interruptInterviewer() {
   speechSynthesis.cancel();
   aiSpeakingNow = false;
+  stopBargeInWatch();
+  setAvatarTalking(false);
+  skipThink();
   $('tile-ai').classList.remove('speaking');
   $('ai-caption').classList.add('hidden');
   clearTimeout(aiSpeakTimer); clearTimeout(aiCaptionTimer);
@@ -530,6 +593,7 @@ function interruptInterviewer() {
 
 function toggleMic() {
   if (micMuted) return toast('麦克风已静音，请先点击底部「静音」解除静音');
+  skipThink();   // 手动开麦 = 跳过思考倒计时
   if (recog) { userStopListening(); return; }
   startListening({ auto: false });
 }
@@ -697,14 +761,41 @@ async function runTurnCheck() {
   }
 }
 
-/** 面试官说完 → 自动开麦（语音优先的核心） */
+/** 面试官说完 → 自动开麦（语音优先的核心）；若处于思考倒计时，则等倒计时结束 */
 function scheduleAutoListen(delay = 600) {
   if (!$('auto-mic') || !$('auto-mic').checked) return;
   if (!state.session || state.session.mode === 'text') return;
   if (micMuted || recog || aiSpeakingNow) return;
+  if (state.thinkUntil && Date.now() < state.thinkUntil) {
+    delay = Math.max(delay, state.thinkUntil - Date.now() + 400);
+  }
   setTimeout(() => {
     if (!recog && !aiSpeakingNow && state.session && !$('answer-input').disabled) startListening({ auto: true });
   }, delay);
+}
+
+/* ===== 思考倒计时（对标 HireVue/大易：每题给候选人 15 秒组织思路） ===== */
+let thinkTimer = null;
+
+function startThinkCountdown(sec = 15) {
+  skipThink();
+  state.thinkUntil = Date.now() + sec * 1000;
+  const tick = () => {
+    const left = Math.ceil((state.thinkUntil - Date.now()) / 1000);
+    if (left <= 0 || !state.thinkUntil) {
+      skipThink();
+      return;
+    }
+    $('bar-status').textContent = `⏳ 思考时间 ${left}s（可直接开口或点 🎙 跳过）`;
+  };
+  tick();
+  thinkTimer = setInterval(tick, 500);
+}
+
+function skipThink() {
+  clearInterval(thinkTimer); thinkTimer = null;
+  state.thinkUntil = null;
+  $('bar-status').textContent = state.reverseMode ? '反问环节' : '面试进行中';
 }
 
 function collectMetrics(text) {
@@ -784,10 +875,18 @@ function speakText(text) {
     if (vs.length) u.voice = vs[0];
     aiSpeakingNow = true;
     startBargeInWatch();   // 播放期间允许候选人直接开口打断
+    setAvatarTalking(true);
     const done = () => {
       aiSpeakingNow = false;
       stopBargeInWatch();
+      setAvatarTalking(false);
       const t = $('tile-ai'); if (t) t.classList.remove('speaking');
+      // 反问环节结束语说完 → 直接收尾生成报告
+      if (state.autoFinishAfterSpeech) {
+        state.autoFinishAfterSpeech = false;
+        finishInterview(true);
+        return;
+      }
       // 说完 → 稍等 0.6s（避开回声）自动开麦收音
       scheduleAutoListen(600);
     };
@@ -805,6 +904,7 @@ function cleanupMeeting() {
   stopCallTimer();
   stopMicMeter();
   stopBargeInWatch();
+  skipThink();
   try { speechSynthesis.cancel(); } catch {}
   quietStopListening();
   clearTimeout(aiSpeakTimer); clearTimeout(aiCaptionTimer);

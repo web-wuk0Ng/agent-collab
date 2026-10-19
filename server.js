@@ -183,6 +183,15 @@ const routes = {
     return await interview.turnCheck(s, p);
   },
 
+  // 反问环节：候选人向面试官提问
+  'POST /api/interview/ask': async (p) => {
+    const s = db.getSession(p.sessionId);
+    if (!s || s.status !== 'ongoing') throw new Error('面试会话不存在或已结束');
+    const r = await interview.askCandidate(s, p);
+    db.saveSession(s);
+    return r;
+  },
+
   // 结束面试并生成评估报告
   'POST /api/interview/finish': async (p) => {
     const s = db.getSession(p.sessionId);
