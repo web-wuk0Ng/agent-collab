@@ -30,7 +30,8 @@
     return btoa(bin);
   }
 
-  function createEngine() {
+  function createEngine(opts) {
+    const deviceId = (opts && opts.deviceId) || '';
     let audioCtx = null, source = null, processor = null, stream = null;
     let sessionId = null, stopped = true, pcmQueue = [], sending = false;
 
@@ -40,15 +41,25 @@
       async start() {
         stopped = false;
         sessionId = 'asr-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+        const audio = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+        if (deviceId) audio.deviceId = { exact: deviceId };
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
-          });
+          stream = await navigator.mediaDevices.getUserMedia({ audio });
         } catch (e) {
-          stopped = true;
-          if (engine.onerror) engine.onerror({ error: 'not-allowed' });
-          if (engine.onend) engine.onend();
-          return;
+          // 指定设备不可用 → 回退默认设备，别让整场面试失去语音
+          if (deviceId && (e.name === 'OverconstrainedError' || e.name === 'NotFoundError')) {
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({
+                audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+              });
+            } catch { stream = null; }
+          }
+          if (!stream) {
+            stopped = true;
+            if (engine.onerror) engine.onerror({ error: 'not-allowed' });
+            if (engine.onend) engine.onend();
+            return;
+          }
         }
         try {
           audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });

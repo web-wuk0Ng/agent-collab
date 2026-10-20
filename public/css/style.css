@@ -122,6 +122,36 @@ body.in-meeting .topbar { display: none; }
 .pj-self { position: absolute; left: 14px; bottom: 14px; color: #fff; font-size: 13px; background: rgba(0,0,0,.42); padding: 4px 10px; border-radius: 6px; }
 .pj-privacy { position: absolute; right: 14px; bottom: 14px; color: #c8d0e0; font-size: 12px; background: rgba(0,0,0,.42); padding: 4px 10px; border-radius: 6px; }
 .pj-devbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* 麦克风设备选择行 */
+.pj-devpick {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 13px; color: var(--ink-2); background: var(--primary-soft);
+  border: 1px solid #d9e4ff; border-radius: 12px; padding: 8px 12px;
+}
+.pj-devpick select, .dev-panel select {
+  font: inherit; font-size: 13px; color: var(--ink); background: #fff;
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px;
+  max-width: 320px; cursor: pointer;
+}
+.pj-devpick select:focus, .dev-panel select:focus { outline: 2px solid rgba(47,107,255,.28); border-color: var(--primary); }
+.dev-refresh {
+  border: 1px solid var(--line); background: #fff; border-radius: 8px; cursor: pointer;
+  padding: 5px 9px; font-size: 13px; line-height: 1; color: var(--ink-2);
+}
+.dev-refresh:hover { border-color: var(--primary); color: var(--primary); }
+.dev-hint { font-size: 12px; color: #7a8398; }
+/* 会中设备面板 */
+.dev-panel {
+  position: fixed; right: 24px; bottom: 86px; z-index: 70; width: 380px; max-width: calc(100vw - 32px);
+  background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px;
+  box-shadow: 0 10px 34px rgba(20,28,48,.18);
+}
+.dev-panel h3 { font-size: 14px; margin-bottom: 12px; color: var(--ink); }
+.dev-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; color: var(--ink-2); }
+.dev-row label, .dev-label { min-width: 62px; }
+.dev-row select { flex: 1; }
+.dev-panel .meter { width: 100%; flex: 1; }
+.dev-panel .dev-hint { display: block; margin-top: 4px; line-height: 1.5; color: #7a8398; }
 .pj-dev {
   display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--card);
   border-radius: 12px; padding: 10px 16px; cursor: pointer; font: inherit; color: var(--ink-2); transition: all .15s;
@@ -262,6 +292,7 @@ body.in-meeting .topbar { display: none; }
 .ctrl i { font-style: normal; font-size: 19px; }
 .ctrl:hover { background: #262b34; color: #fff; }
 .ctrl.off { color: #f87171; }
+.ctrl.active { background: #262b34; color: #fff; }
 .ctrl.end { background: var(--danger); color: #fff; min-width: 96px; }
 .ctrl.end:hover { background: #c93b40; }
 .bar-mid { display: flex; align-items: center; gap: 10px; min-width: 0; }

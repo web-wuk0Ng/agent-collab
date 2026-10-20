@@ -102,6 +102,12 @@
         <div class="pj-self">我</div>
         <div class="pj-privacy">🔒 画面与音频仅在本机处理，不上传、不录制</div>
       </div>
+      <div class="pj-devpick">
+        <label for="pj-mic-select">🎙 麦克风设备</label>
+        <select id="pj-mic-select" onchange="selectMicDevice(this.value)"></select>
+        <button class="dev-refresh" onclick="refreshMicDevices(true)" title="重新扫描设备（插拔麦克风后点这里）">🔄</button>
+        <span id="pj-mic-devhint" class="dev-hint">说话试试，右侧音量条会跟着动</span>
+      </div>
       <div class="pj-devbar">
         <button id="pj-mic-btn" class="pj-dev on" onclick="prejoinToggleMic()"><i>🎙</i><span>麦克风</span></button>
         <button id="pj-cam-btn" class="pj-dev on" onclick="prejoinToggleCam()"><i>🎥</i><span>摄像头</span></button>
@@ -234,6 +240,7 @@
         <button class="ctrl" id="ctrl-view" onclick="toggleViewMode()" title="切换视图"><i>🔳</i><span>视图</span></button>
         <button class="ctrl" id="ctrl-chat" onclick="mtgSide('chat')" title="面试对话"><i>💬</i><span>对话</span></button>
         <button class="ctrl" id="ctrl-stats" onclick="mtgSide('stats')" title="临场分析"><i>📊</i><span>分析</span></button>
+        <button class="ctrl" id="ctrl-dev" onclick="toggleDevPanel()" title="麦克风设备"><i>🎚</i><span>设备</span></button>
       </div>
       <div class="bar-mid">
         <span class="bar-status" id="bar-status">面试进行中</span>
@@ -244,6 +251,21 @@
         <button class="ctrl end" onclick="finishInterview()" title="结束并生成报告"><i>☎</i><span>结束面试</span></button>
       </div>
     </footer>
+
+    <!-- 会中麦克风设置（随时切换输入设备，切换后自动用新设备续听） -->
+    <div id="dev-panel" class="dev-panel hidden">
+      <h3>🎚 声音设置</h3>
+      <div class="dev-row">
+        <label for="mtg-mic-select">麦克风</label>
+        <select id="mtg-mic-select" onchange="selectMicDevice(this.value)"></select>
+        <button class="dev-refresh" onclick="refreshMicDevices(true)" title="重新扫描设备">🔄</button>
+      </div>
+      <div class="dev-row">
+        <span class="dev-label">输入音量</span>
+        <div class="meter"><i id="dev-panel-meter"></i></div>
+      </div>
+      <p id="mtg-mic-hint" class="dev-hint">对着麦克风说话，音量条跳动即表示设备正常。切换设备后无需重开会议。</p>
+    </div>
   </section>
 </main>
 

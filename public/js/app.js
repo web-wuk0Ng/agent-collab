@@ -93,6 +93,90 @@ let callTimer = null, callStart = 0;
 let aiSpeakTimer = null, aiCaptionTimer = null;
 let micMuted = false, micOn = true;
 
+/* ---- 麦克风设备选择（真机多设备场景：外接麦 / 耳机麦 / 蓝牙耳机 需手动切） ---- */
+const MIC_KEY = 'mm.mic.deviceId';
+let micDeviceId = localStorage.getItem(MIC_KEY) || '';
+let micDevices = [];
+
+/** 统一音频约束：所有采集（音量检测 / 本地识别）都走这里，保证用的是同一个设备 */
+function audioConstraints() {
+  const c = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+  if (micDeviceId) c.deviceId = { exact: micDeviceId };
+  return c;
+}
+
+/** 枚举输入设备并刷新两处下拉框（会前 / 会中） */
+async function refreshMicDevices(verbose = false) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  try {
+    const all = await navigator.mediaDevices.enumerateDevices();
+    micDevices = all.filter(d => d.kind === 'audioinput');
+  } catch { micDevices = []; }
+
+  // 已选设备被拔掉 → 自动回落到默认设备，避免采集一直失败
+  if (micDeviceId && micDevices.length && !micDevices.some(d => d.deviceId === micDeviceId)) {
+    micDeviceId = '';
+    localStorage.removeItem(MIC_KEY);
+    toast('原来的麦克风已断开，已自动切换回系统默认设备');
+  }
+
+  const opts = [];
+  micDevices.forEach((d, i) => {
+    const label = d.label && d.label.trim() ? d.label : `麦克风 ${i + 1}（未授权名称）`;
+    opts.push(`<option value="${d.deviceId}">${label.replace(/</g, '&lt;')}</option>`);
+  });
+  if (!opts.length) opts.push('<option value="">未检测到麦克风</option>');
+
+  ['pj-mic-select', 'mtg-mic-select'].forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    el.innerHTML = opts.join('');
+    el.value = micDeviceId || (micDevices[0] ? micDevices[0].deviceId : '');
+    el.disabled = !micDevices.length;
+  });
+
+  const cur = micDevices.find(d => d.deviceId === micDeviceId) || micDevices[0];
+  const hint = micDeviceId && cur ? `当前使用：${cur.label || '已选设备'}` : '当前使用：系统默认设备';
+  if ($('pj-mic-devhint')) $('pj-mic-devhint').textContent = micDevices.length ? hint : '未检测到麦克风，请插入设备后点 🔄 重扫';
+  if (verbose) toast(micDevices.length ? `已重新扫描，共 ${micDevices.length} 个麦克风` : '未检测到麦克风设备');
+}
+
+/** 切换麦克风：保存偏好 → 重建音量检测流 → 正在收音则用新设备无缝续听 */
+async function selectMicDevice(id) {
+  micDeviceId = id || '';
+  if (micDeviceId) localStorage.setItem(MIC_KEY, micDeviceId); else localStorage.removeItem(MIC_KEY);
+  await refreshMicDevices();
+
+  const wasListening = !!recog;
+  const wasAuto = listenState && listenState.auto;
+  if (wasListening) quietStopListening(true);   // 静默停掉旧设备的收音，避免两个流抢麦
+
+  stopMicMeter();
+  const ok = await startMicMeter();
+  if (ok && $('pj-mic-devhint')) {
+    const cur = micDevices.find(d => d.deviceId === micDeviceId);
+    $('pj-mic-devhint').textContent = `已切换到：${cur ? (cur.label || '已选设备') : '系统默认设备'} · 说话试试音量条`;
+  }
+  if (!ok) {
+    toast('该麦克风无法使用（可能被其他程序占用），已回退到系统默认设备');
+    micDeviceId = '';
+    localStorage.removeItem(MIC_KEY);
+    await startMicMeter();
+    await refreshMicDevices();
+  }
+  // 收音中切设备：用新设备继续听，用户打断感最小
+  if (wasListening && state.session && !micMuted) setTimeout(() => startListening({ auto: wasAuto }), 200);
+}
+
+function toggleDevPanel() {
+  const p = $('dev-panel');
+  if (!p) return;
+  const show = p.classList.contains('hidden');
+  p.classList.toggle('hidden', !show);
+  $('ctrl-dev').classList.toggle('active', show);
+  if (show) refreshMicDevices();
+}
+
 const newMeetingId = () => 'MM-' + Math.random().toString(36).slice(2, 5).toUpperCase() + '-' + Math.random().toString(36).slice(2, 5).toUpperCase();
 
 async function startInterview() {
@@ -157,11 +241,13 @@ async function prejoinPrepare(mode) {
   const textMode = mode === 'text';
   $('pj-cam-btn').classList.toggle('hidden', textMode);
   $('pj-mic-btn').classList.toggle('hidden', textMode);
+  document.querySelector('.pj-devpick').classList.toggle('hidden', textMode);
   $('pj-video-off').classList.toggle('show', textMode);
   if (textMode) {
     $('pj-hint').textContent = '⌨ 文字面试模式：无需麦克风与摄像头，直接加入会议即可开始作答。';
     return;
   }
+  refreshMicDevices();   // 先给出已知设备，授权成功后会带上真实设备名再刷一次
   // 浏览器诊断：Chrome 的在线语音识别走 Google 服务，在国内常不稳定甚至无结果
   const ua = navigator.userAgent;
   if (/Chrome\//.test(ua) && !/Edg\//.test(ua)) {
@@ -174,13 +260,20 @@ async function prejoinPrepare(mode) {
 async function startMicMeter() {
   if (micStream) return true;
   try {
-    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints() });
   } catch (e) {
-    $('pj-mic-btn').classList.remove('on'); $('pj-mic-btn').classList.add('off');
-    micOn = false;
-    $('pj-hint').textContent = '⚠️ 未获得麦克风权限，本次将无法语音作答（可继续用文字作答，或检查浏览器地址栏权限后刷新）。';
-    return false;
+    // 指定的设备不可用（拔了/被占用）→ 清掉偏好，回退系统默认设备再试一次
+    if (micDeviceId && (e.name === 'OverconstrainedError' || e.name === 'NotFoundError' || e.name === 'NotReadableError')) {
+      micDeviceId = '';
+      localStorage.removeItem(MIC_KEY);
+      try { micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints() }); }
+      catch (e2) { return micFailUI(e2); }
+    } else {
+      return micFailUI(e);
+    }
   }
+  // 权限已授予：此时设备名（label）才可读，刷新下拉框
+  refreshMicDevices();
   try {
     micCtx = new (window.AudioContext || window.webkitAudioContext)();
     const src = micCtx.createMediaStreamSource(micStream);
@@ -193,14 +286,26 @@ async function startMicMeter() {
       micAnalyser.getByteFrequencyData(buf);
       let sum = 0; for (const v of buf) sum += v;
       const level = micMuted ? 0 : Math.min(100, Math.round(sum / buf.length * 2.2));
-      const a = $('pj-meter-fill'), b = $('bar-meter-fill');
+      const a = $('pj-meter-fill'), b = $('bar-meter-fill'), c = $('dev-panel-meter');
       if (a) a.style.width = level + '%';
       if (b) b.style.width = level + '%';
+      if (c) c.style.width = level + '%';
       micRaf = requestAnimationFrame(tick);
     };
     tick();
   } catch (e) { console.warn('音量检测不可用:', e.message); }
   return true;
+}
+
+function micFailUI(e) {
+  $('pj-mic-btn').classList.remove('on'); $('pj-mic-btn').classList.add('off');
+  micOn = false;
+  const why = e && e.name === 'NotAllowedError'
+    ? '麦克风权限被拒绝：请点浏览器地址栏左侧图标允许麦克风后刷新页面'
+    : '麦克风无法打开（可能被其他会议软件占用：' + (e && e.name ? e.name : '未知') + '），可换一个设备或关闭占用程序';
+  $('pj-hint').textContent = '⚠️ ' + why + '。本次仍可继续用文字作答。';
+  if ($('pj-mic-devhint')) $('pj-mic-devhint').textContent = '⚠️ ' + why;
+  return false;
 }
 
 function stopMicMeter() {
@@ -282,7 +387,7 @@ function voiceSelfTest() {
 
   let r;
   if (useLocal) {
-    r = LocalASR.createEngine();
+    r = LocalASR.createEngine({ deviceId: micDeviceId });
   } else {
     r = new SR();
     r.lang = 'zh-CN'; r.continuous = true; r.interimResults = true;
@@ -704,7 +809,7 @@ function startListening({ auto = false } = {}) {
 
   let r;
   if (useLocal) {
-    r = LocalASR.createEngine();
+    r = LocalASR.createEngine({ deviceId: micDeviceId });
   } else {
     r = new SR();
     r.lang = 'zh-CN';
@@ -1051,6 +1156,7 @@ function cleanupMeeting() {
   stopCallTimer();
   stopMicMeter();
   stopBargeInWatch();
+  if ($('dev-panel')) { $('dev-panel').classList.add('hidden'); $('ctrl-dev').classList.remove('active'); }
   skipThink();
   try { speechSynthesis.cancel(); } catch {}
   aiSpeakingNow = false;
@@ -1481,5 +1587,15 @@ async function adminExport() {
   window.addEventListener('online', updateNetStatus);
   window.addEventListener('offline', updateNetStatus);
   window.addEventListener('beforeunload', () => { try { cleanupMeeting(); } catch {} });
+  // 插拔麦克风/耳机时自动刷新设备列表（并回落到可用设备）
+  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+    navigator.mediaDevices.addEventListener('devicechange', () => {
+      refreshMicDevices();
+      if (micStream) {   // 采集流已失效（设备拔出）→ 重建
+        const dead = micStream.getAudioTracks().every(t => t.readyState === 'ended');
+        if (dead) { stopMicMeter(); startMicMeter(); }
+      }
+    });
+  }
   if (speechSynthesis) speechSynthesis.getVoices(); // 预热语音列表
 })();
