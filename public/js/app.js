@@ -165,7 +165,7 @@ async function prejoinPrepare(mode) {
   // 浏览器诊断：Chrome 的在线语音识别走 Google 服务，在国内常不稳定甚至无结果
   const ua = navigator.userAgent;
   if (/Chrome\//.test(ua) && !/Edg\//.test(ua)) {
-    $('pj-hint').textContent += ' ⚠️ 检测到你在用 Chrome：它的语音识别服务在国内可能很慢甚至无响应，强烈建议改用 Edge 浏览器进行语音面试。';
+    $('pj-hint').textContent += ' ℹ️ 你在用 Chrome：它的在线识别服务在国内不可用，本系统已自动改用内置的本地离线识别引擎（语音不出本机，识别效果一致）。';
   }
   await startMicMeter();
   if (mode === 'video') await prejoinCameraOn();
@@ -268,19 +268,28 @@ function voiceSelfTest() {
   const btn = $('pj-voice-btn');
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   box.classList.remove('hidden');
-  if (!SR) {
-    box.innerHTML = '❌ 当前浏览器不支持语音识别。请改用 <b>Edge</b> 或 Chrome，或直接打字作答。';
-    return;
-  }
   if (selfTestRecog) { try { selfTestRecog.stop(); } catch {} return; }
 
+  // 与面试中一致的引擎选择：Chrome / 不支持在线识别 → 本地离线引擎
   const isChrome = /Chrome/.test(navigator.userAgent) && !/Edg\//.test(navigator.userAgent);
   const isEdge = /Edg\//.test(navigator.userAgent);
-  const r = new SR();
+  const localOk = window.LocalASR && LocalASR.available !== false;
+  const useLocal = !SR ? localOk : (isChrome && localOk);
+  if (!SR && !localOk) {
+    box.innerHTML = '❌ 当前浏览器不支持语音识别，且本地识别引擎未就绪。请改用 <b>Edge</b> 或 Chrome，或直接打字作答。';
+    return;
+  }
+
+  let r;
+  if (useLocal) {
+    r = LocalASR.createEngine();
+  } else {
+    r = new SR();
+    r.lang = 'zh-CN'; r.continuous = true; r.interimResults = true;
+  }
   selfTestRecog = r;
-  r.lang = 'zh-CN'; r.continuous = true; r.interimResults = true;
   btn.classList.add('on');
-  box.innerHTML = '🎙 请对着麦克风说几句话（例如"你好，我来参加面试"）…<span class="vr-live"></span>';
+  box.innerHTML = `🎙 请对着麦克风说几句话（例如"你好，我来参加面试"）…<br><small>当前引擎：${useLocal ? '本地离线识别（语音不出本机）' : '浏览器在线识别'}</small><span class="vr-live"></span>`;
 
   let heard = false, finished = false;
   const wrapUp = (ok, msg) => {
@@ -292,17 +301,18 @@ function voiceSelfTest() {
   r.onresult = e => {
     heard = true;
     let txt = '';
-    for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+    if (useLocal) txt = e.final || e.interim || '';
+    else for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
     const live = box.querySelector('.vr-live');
     if (live) live.textContent = ' 听到：' + txt.slice(-30);
   };
   r.onerror = e => {
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
       wrapUp(false, '❌ 麦克风权限被拒绝：请点浏览器地址栏左侧的锁形图标，允许麦克风后重试。');
+    } else if (e.error === 'local-asr-down') {
+      wrapUp(false, '❌ 本地识别服务异常：请重启服务（双击 启动面试.bat）后重试。');
     } else if (e.error === 'network') {
-      wrapUp(false, '❌ 识别服务连接失败（network）。' + (isChrome
-        ? '<b>Chrome 的在线语音识别走 Google 服务，在国内不可用——请改用 Edge 面试</b>，或直接打字作答。'
-        : '请检查网络后重试，或改用 Edge / 打字作答。'));
+      wrapUp(false, '❌ 在线识别服务连接失败（network）。请重试——面试中会自动切换到本地离线引擎，或改用 Edge。');
     } else if (e.error === 'no-speech') {
       wrapUp(false, '⚠️ 引擎正常但没有听到声音：请检查麦克风是否被系统静音、是否选对了输入设备。');
     } else {
@@ -311,9 +321,9 @@ function voiceSelfTest() {
   };
   r.onend = () => {
     if (finished) return;
-    if (heard) wrapUp(true, '✅ 语音识别正常！刚才你说的话已成功识别，可以放心加入会议。');
+    if (heard) wrapUp(true, `✅ 语音识别正常（${useLocal ? '本地离线引擎' : '在线识别'}）！刚才你说的话已成功识别，可以放心加入会议。`);
     else wrapUp(false, '⚠️ 8 秒内没有收到任何识别结果。' + (isChrome
-      ? '<b>Chrome 的在线识别服务在国内基本不可用，强烈建议改用 Edge</b>（识别快且稳定）。'
+      ? '如多次失败请改用 Edge，面试中也会自动切换本地离线引擎兜底。'
       : isEdge ? '请确认麦克风没静音、系统输入设备选对后重试。' : '建议改用 Edge 浏览器。') + '也可以直接打字作答。');
   };
   try {
@@ -580,6 +590,7 @@ async function submitAnswer(fromVoice) {
  *  4) 可打断：面试官说话时你直接开口即可插话（检测到持续人声立即停播并开麦）
  */
 let recog = null;
+let asrPrefer = 'auto';   // auto | webspeech | local —— 在线识别失败时自动降级到本地离线引擎
 let listenState = null;   // { baseLen, auto, stopped, lastSpeech, restartTimer, gotResult, noResultTimer }
 let aiSpeakingNow = false;
 let turnCheckTimer = null;
@@ -624,8 +635,6 @@ function startMicLevel() {
 function startBargeInWatch() {
   stopBargeInWatch();
   if (!micAnalyser || !micStream || micMuted || !micOn) return;
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return;
   const startAt = Date.now();
   let hotMs = 0, prev = performance.now();
   const tick = () => {
@@ -670,49 +679,64 @@ function startListening({ auto = false } = {}) {
   if (recog || !state.session) return;
   if (micMuted) { if (!auto) toast('麦克风已静音，请先解除静音'); return; }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { if (!auto) toast('当前浏览器不支持语音识别，请使用 Chrome / Edge，或改用文字输入'); return; }
+  // 引擎选择：Edge 用浏览器在线识别（快而稳）；Chrome 的在线识别走 Google 服务，
+  // 国内不可用 → 直接用本地离线引擎（sherpa-onnx，语音不出本机）
+  const isChromeOnly = /Chrome/.test(navigator.userAgent) && !/Edg\//.test(navigator.userAgent);
+  const localOk = window.LocalASR && LocalASR.available !== false;
+  let useLocal;
+  if (asrPrefer === 'local') useLocal = true;
+  else if (asrPrefer === 'webspeech') useLocal = false;
+  else useLocal = !SR ? localOk : (isChromeOnly && localOk);
+  if (!SR && !localOk) {
+    if (!auto) toast('当前浏览器不支持语音识别，且本地识别引擎未就绪。请使用 Chrome / Edge，或改用文字输入');
+    return;
+  }
+  if (useLocal && !localOk) useLocal = false;   // 本地引擎不可用则退回浏览器识别
 
   const input = $('answer-input');
   listenState = {
     baseLen: input.value.length,
     auto, stopped: false, gotResult: false,
+    engine: useLocal ? 'local' : 'webspeech',
     lastSpeech: Date.now(), restartTimer: null, noResultTimer: null
   };
   if (!state.voiceSession || state.voiceSession.endTime) state.voiceSession = { startTime: Date.now(), used: true };
 
-  const r = new SR();
+  let r;
+  if (useLocal) {
+    r = LocalASR.createEngine();
+  } else {
+    r = new SR();
+    r.lang = 'zh-CN';
+    r.continuous = true;
+    r.interimResults = true;   // 关键：边说边上屏，不等整句
+    r.maxAlternatives = 1;
+  }
   recog = r;
-  r.lang = 'zh-CN';
-  r.continuous = true;
-  r.interimResults = true;   // 关键：边说边上屏，不等整句
-  r.maxAlternatives = 1;
 
   r.onstart = () => {
     micBtnUI(true);
+    const tag = listenState.engine === 'local' ? '本地离线识别' : '在线识别';
     $('mic-status').textContent = auto
-      ? '🎙 已自动开麦，请直接开口作答（停顿没关系，面试官会听你讲完）'
-      : '🔴 正在聆听…请开始作答（再次点击麦克风或「发送」提交）';
+      ? `🎙 已自动开麦（${tag}），请直接开口作答（停顿没关系，面试官会听你讲完）`
+      : `🔴 正在聆听（${tag}）…请开始作答（再次点击麦克风或「发送」提交）`;
     setMeSpeaking(true);
     startMicLevel();
     scheduleTurnCheck();
-    // 诊断：开麦 6 秒无任何识别结果（且麦克风确实收得到声音）→ 大概率是浏览器在线识别服务不可用
+    // 诊断：开麦 6 秒无任何识别结果 → 识别链路异常
     clearTimeout(listenState.noResultTimer);
     listenState.noResultTimer = setTimeout(() => {
       if (recog && listenState && !listenState.stopped && !listenState.gotResult) {
-        $('mic-status').textContent = '⚠️ 已开麦但未收到识别结果：当前浏览器的在线语音识别可能不可用。建议改用 Edge（识别更快更稳），或点击输入框打字作答';
+        $('mic-status').textContent = '⚠️ 已开麦但未收到识别结果：请确认麦克风没静音、说话音量足够大，或点击输入框打字作答';
       }
     }, 6000);
   };
 
-  r.onresult = e => {
+  // 两个引擎统一的结果处理
+  const handleResult = (final, interim) => {
     if (!listenState.gotResult) {
       listenState.gotResult = true;
       clearTimeout(listenState.noResultTimer);   // 识别服务正常，撤掉诊断提示
-    }
-    let interim = '', final = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript;
-      if (e.results[i].isFinal) final += t; else interim += t;
     }
     if (final) {
       input.value += final;
@@ -723,16 +747,35 @@ function startListening({ auto = false } = {}) {
     scheduleTurnCheck();
   };
 
+  if (useLocal) {
+    r.onresult = e => handleResult(e.final || '', e.interim || '');
+  } else {
+    r.onresult = e => {
+      let interim = '', final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) final += t; else interim += t;
+      }
+      handleResult(final, interim);
+    };
+  }
+
   r.onerror = e => {
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
       listenState.stopped = true;
       $('mic-status').textContent = '❌ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风';
+    } else if (e.error === 'local-asr-down') {
+      listenState.stopped = true;
+      $('mic-status').textContent = '❌ 本地识别服务异常：请重启服务（双击 启动面试.bat），或暂时打字作答';
     } else if (e.error === 'network') {
-      // 在线识别服务连不上（Chrome 在国内的典型故障）：重试一次仍失败就放弃，别无限重启
+      // 浏览器在线识别连不上：无缝切换到本地离线引擎（不置 stopped，onend 会自动续听并换引擎）
       listenState.netErrs = (listenState.netErrs || 0) + 1;
-      if (listenState.netErrs >= 2) {
+      if (window.LocalASR && LocalASR.available !== false) {
+        asrPrefer = 'local';
+        $('mic-status').textContent = '🔄 在线识别不可用，正在切换到本地离线识别引擎…';
+      } else if (listenState.netErrs >= 2) {
         listenState.stopped = true;
-        $('mic-status').textContent = '❌ 语音识别服务不可用（当前浏览器的在线识别连不上）。强烈建议改用 Edge 打开本页面，或直接打字作答';
+        $('mic-status').textContent = '❌ 语音识别服务不可用（在线识别连不上、本地引擎未就绪）。请改用 Edge，或直接打字作答';
       }
     } else if (e.error === 'no-speech') {
       // 静音超时，交给 onend 自动续听即可，不提示
@@ -747,16 +790,20 @@ function startListening({ auto = false } = {}) {
     const canRestart = listenState && !listenState.stopped
       && state.session && !aiSpeakingNow && !$('answer-input').disabled && !micMuted;
     if (canRestart) {
-      // Chrome 识别引擎说几句话就自动断流 → 立刻无缝续听，用户无感
+      // 断流 → 立刻无缝续听（若刚发生 network 错误，本次重启会换成本地引擎）
       $('mic-status').textContent = '🔴 正在聆听…';
       listenState.restartTimer = setTimeout(() => startListening({ auto: listenState.auto }), 250);
       return;
     }
     // 识别服务不可用导致的停止：保留报错文案，别用"已停止收音"覆盖
-    if (listenState && listenState.netErrs >= 2) { setMeSpeaking(false); return; }
+    if (listenState && listenState.netErrs >= 2 && asrPrefer !== 'local') { setMeSpeaking(false); return; }
+    if (listenState && listenState.stopped && $('mic-status').textContent.startsWith('❌')) { setMeSpeaking(false); return; }
     finishListenUI('已停止收音。可以继续补充或点击「发送」提交');
   };
-  try { r.start(); } catch (e) { toast('语音识别启动失败：' + e.message); }
+  try {
+    const p = r.start();
+    if (p && p.catch) p.catch(e => { recog = null; toast('语音识别启动失败：' + e.message); });
+  } catch (e) { recog = null; toast('语音识别启动失败：' + e.message); }
 }
 
 function userStopListening() {

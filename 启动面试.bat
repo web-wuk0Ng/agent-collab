@@ -14,6 +14,9 @@ echo   URL: http://localhost:3000
 echo   (browser will open automatically)
 echo   Close this window to stop the server.
 echo ============================================
+rem First run: install local offline speech recognition (sherpa-onnx, ~50MB one-time download).
+rem Enables voice interview in Chrome / offline; audio never leaves your machine.
+node scripts\setup-asr.js
 start "" "http://localhost:3000"
 node server.js
 pause

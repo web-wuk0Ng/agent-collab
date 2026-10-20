@@ -43,3 +43,7 @@ Thumbs.db
 
 # ===== AI 助手工作目录 =====
 .workbuddy/
+
+# 本地语音识别引擎（首启自动下载，不入库）
+vendor/asr-runtime/
+vendor/asr-model/

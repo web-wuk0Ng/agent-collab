@@ -11,4 +11,7 @@ echo "  地址: http://localhost:3000"
 echo "  按 Ctrl+C 停止服务"
 echo "============================================"
 ( sleep 1.5; curl -s -o /dev/null http://localhost:3000 && xdg-open http://localhost:3000 2>/dev/null || open http://localhost:3000 2>/dev/null ) &
+# 首次运行：安装本地离线语音识别（sherpa-onnx，约 50MB 一次性下载）
+# 让 Chrome / 离线环境也能语音面试，语音数据不出本机
+node scripts/setup-asr.js || true
 node server.js
