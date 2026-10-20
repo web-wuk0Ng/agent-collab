@@ -45,24 +45,27 @@ const { chromium } = require('playwright');
   await shot('03c-side-stats');
   await page.click('#ctrl-chat');
 
-  // 4. 三轮作答（针对实际题目作答难以预知，这里输入通用充分的回答）
+  // 4. 三轮作答（纯语音流程：没有输入框和发送按钮，测试直接走"说完自动提交"的内部入口）
+  const speak = async txt => {
+    await page.evaluate(t => {
+      document.getElementById('answer-input').value = t;
+      submitAnswer(true);
+    }, txt);
+    await page.waitForTimeout(1200);
+  };
   const answers = [
     '面试官你好，我是演示用户，浙江师范大学软件工程专业学生，系统学习过数据结构、操作系统、计算机网络，主要技术栈是 Vue3、TypeScript、JavaScript、CSS，做过校园活动报名系统和一个小组件库，求职方向是 Web 前端开发工程师，希望今天能有好的表现。',
     '这道题我的理解是：首先它解决的是渲染和更新的效率问题，核心思想是先在内存中计算差异，再最小化地更新真实节点。其次在实际项目里我配置过相关构建优化，比如按需加载和代码分割，首屏加载时间从三秒降到了一秒左右。最后我认为选择方案要看业务规模，小项目直接用原生方案就够了。',
     '我从三个层面回答：第一是基础原理层面，它涉及浏览器解析和执行机制；第二是工程实践层面，我在项目里遇到过类似问题，通过监控和日志定位到根因是资源加载顺序，调整后恢复正常；第三是优化层面，我会做缓存、懒加载和代码压缩，并用 Performance 面板量化效果。'
   ];
   for (let i = 0; i < 3; i++) {
-    await page.fill('#answer-input', answers[i]);
-    await page.click('.chat-input .btn.primary');
-    await page.waitForTimeout(1200);
+    await speak(answers[i]);
     await shot(`04-answer-${i + 1}`);
     // 若触发追问，再答一次
     const follow = await page.$('.msg.sys');
     const lastSys = follow ? await follow.textContent() : '';
     if (lastSys.includes('追问')) {
-      await page.fill('#answer-input', '好的，我补充一下：具体来说它的实现依赖事件机制和异步调度，我在项目里用这个方法解决过列表渲染卡顿的问题，通过虚拟列表把 DOM 节点从一万个降到二十个，滚动帧率稳定在六十帧。');
-      await page.click('.chat-input .btn.primary');
-      await page.waitForTimeout(1200);
+      await speak('好的，我补充一下：具体来说它的实现依赖事件机制和异步调度，我在项目里用这个方法解决过列表渲染卡顿的问题，通过虚拟列表把 DOM 节点从一万个降到二十个，滚动帧率稳定在六十帧。');
       await shot(`04-answer-${i + 1}-followup`);
     }
   }

@@ -174,7 +174,7 @@ function toggleDevPanel() {
   const show = p.classList.contains('hidden');
   p.classList.toggle('hidden', !show);
   $('ctrl-dev').classList.toggle('active', show);
-  if (show) refreshMicDevices();
+  if (show) { refreshMicDevices(); if ($('mtg-asr-select')) $('mtg-asr-select').value = asrPrefer; }
 }
 
 const newMeetingId = () => 'MM-' + Math.random().toString(36).slice(2, 5).toUpperCase() + '-' + Math.random().toString(36).slice(2, 5).toUpperCase();
@@ -198,7 +198,7 @@ async function startInterview() {
     state.reverseCount = 0;
     state.autoFinishAfterSpeech = false;
     state.thinkUntil = null;
-    $('answer-input').placeholder = '面试官提问后直接开口作答，中途停顿没关系——面试官会判断你是否说完；也可以打字，或点「回答完毕」主动提交';
+    $('answer-input').placeholder = '语音作答（自动提交）';
     pending = { greeting: r.greeting, question: r.question, planSize: r.planSize, jdApplied: r.jdApplied };
     const pos = state.positions.find(p => p.id === state.posId);
     // 会前设备检测页信息
@@ -464,6 +464,9 @@ async function joinMeeting() {
   }
 
   $('chat-log').innerHTML = '';
+  setVoiceState('idle', '🎙 面试开始，先听面试官提问');
+  $('mic-status').textContent = '面试官说完会自动开麦，你直接开口作答即可';
+  renderVoice('');
   updateProgress(0, pending.planSize);
   setCurrentQ(pending.question.text);
   addMsg('ai', pending.greeting + '\n\n' + pending.question.text, true);
@@ -606,7 +609,8 @@ function enterReverseMode() {
   state.reverseCount = 0;
   skipThink();
   $('bar-status').textContent = '反问环节';
-  $('answer-input').placeholder = '轮到你了：有什么想反问面试官的？直接开口或打字（团队、岗位职责、技术栈、培养机制都可以）';
+  $('voice-placeholder').textContent = '轮到你了：有什么想反问面试官的？直接开口说，说完自动提交（团队、岗位职责、技术栈、培养机制都可以）';
+  renderVoice('');
   updateProgress(state.session.planSize || 0, state.session.planSize || 0);
   addMsg('ai', '我的提问就到这里。按照面试惯例，最后留一点时间给你——你有什么想问我的吗？团队情况、岗位日常工作、技术栈都可以聊。', true);
 }
@@ -638,19 +642,29 @@ async function askInterviewer(text) {
 async function submitAnswer(fromVoice) {
   const input = $('answer-input');
   const text = input.value.trim();
-  if (!text) return toast(state.reverseMode ? '请先说出或输入你想反问的问题' : '请先说出或输入你的回答');
+  if (!text) return toast(state.reverseMode ? '请先说出你想反问的问题' : '请先开口作答');
   if (!state.session) return;
+  if (submitLock) return;
+  submitLock = true;
+  clearTimeout(autoSubmitTimer);
 
-  // 语音自动提交（面试官判断已说完）：先安静地停掉收音，避免把面试官的话也录进去
+  // 语音自动提交：先安静地停掉收音，避免把面试官的话也录进去
   if (recog || listenState) quietStopListening();
 
   // 反问环节：候选人提问，面试官回答
-  if (state.reverseMode) return askInterviewer(text);
+  if (state.reverseMode) {
+    try { await askInterviewer(text); } finally { submitLock = false; }
+    return;
+  }
 
   const metrics = collectMetrics(text);
   addMsg('me', text);
   input.value = '';
-  $('btn-mic') && ($('answer-input').disabled = true);
+  listenState = null;
+  renderVoice('');
+  setVoiceState('thinking', '⏳ 已自动提交，面试官正在思考…');
+  $('mic-status').textContent = '说完就自动发出去了，无需点任何按钮';
+  $('answer-input').disabled = true;
   showTyping();
 
   try {
@@ -680,9 +694,11 @@ async function submitAnswer(fromVoice) {
   } catch (e) {
     hideTyping();
     toast(e.message);
+    setVoiceState('idle', '⚠️ 提交失败');
+    $('mic-status').textContent = '网络或服务异常，已恢复收音，请再说一次';
   } finally {
+    submitLock = false;
     $('answer-input').disabled = false;
-    $('answer-input').focus();
   }
 }
 
@@ -695,21 +711,74 @@ async function submitAnswer(fromVoice) {
  *  4) 可打断：面试官说话时你直接开口即可插话（检测到持续人声立即停播并开麦）
  */
 let recog = null;
-let asrPrefer = 'auto';   // auto | webspeech | local —— 在线识别失败时自动降级到本地离线引擎
+let asrPrefer = localStorage.getItem('mm.asr.prefer') || 'auto';   // auto | webspeech | local
+/** 切换识别引擎（会中即时生效，无需重开会议） */
+function setAsrPrefer(v) {
+  asrPrefer = v;
+  localStorage.setItem('mm.asr.prefer', v);
+  const sel = $('mtg-asr-select');
+  if (sel) sel.value = v;
+  const wasListening = !!recog;
+  if (wasListening) quietStopListening(true);
+  const label = v === 'local' ? '本地离线识别' : v === 'webspeech' ? '浏览器在线识别' : '自动选择';
+  toast('识别引擎已切换为：' + label);
+  if (wasListening && state.session && !micMuted) setTimeout(() => startListening({ auto: true }), 250);
+}
 let listenState = null;   // { baseLen, auto, stopped, lastSpeech, restartTimer, gotResult, noResultTimer }
 let aiSpeakingNow = false;
 let turnCheckTimer = null;
 let turnChecking = false;
 let bargeRaf = null;      // 打断检测（面试官说话期间的人声监听）
 let levelRaf = null;      // 收音音量条动画
-const TURN_CHECK_IDLE_MS = 5000;   // 有内容时停顿 5 秒触发面试官判断
-const TURN_CHECK_EMPTY_MS = 9000;  // 一直没开口，9 秒后面试官主动鼓励
+const TURN_CHECK_IDLE_MS = 1800;   // 说完停顿 1.8 秒 → 直接自动提交（不再等大模型判断，快）
+const TURN_CHECK_EMPTY_MS = 6000;  // 一直没开口，6 秒后面试官主动鼓励
+const AUTO_SUBMIT_MIN_CHARS = 8;   // 至少 8 个字才自动提交，避免把"嗯、对"当完整回答
 const TURN_NUDGE_MAX = 3;          // 每道题面试官最多主动引导 3 次，之后安静等你
 
 function micBtnUI(rec) {
   const b = $('btn-mic');
+  if (!b) return;
   b.classList.toggle('rec', !!rec);
   b.textContent = rec ? '🔴' : '🎙';
+  b.title = rec ? '正在收音（点一下＝我说完了，立即提交）' : '点一下开始作答';
+}
+
+/* ===== 纯语音作答界面：实时字幕 + 说完自动提交 ===== */
+let autoSubmitTimer = null;
+let submitLock = false;
+
+/** 状态：idle 待机 / live 正在听 / thinking 面试官思考 / done 已提交 */
+function setVoiceState(kind, text) {
+  const el = $('voice-state');
+  if (!el) return;
+  el.className = 'voice-state ' + kind;
+  el.textContent = text;
+}
+
+/** 渲染实时字幕：已确认文字 + 灰色临时文字 */
+function renderVoice(interim = '') {
+  const buf = $('answer-input').value;
+  const c = $('voice-confirmed'), i = $('voice-interim'), box = $('voice-live'), ph = $('voice-placeholder');
+  if (!c) return;
+  c.textContent = buf;
+  i.textContent = interim ? (buf ? ' ' : '') + interim : '';
+  const empty = !buf && !interim;
+  box.classList.toggle('empty', empty);
+  if (ph) ph.style.display = empty ? '' : 'none';
+  box.scrollTop = box.scrollHeight;
+}
+
+/** 说完自动提交（延迟极短，无需任何点击） */
+function scheduleAutoSubmit(delay) {
+  clearTimeout(autoSubmitTimer);
+  autoSubmitTimer = setTimeout(() => {
+    if (submitLock || aiSpeakingNow || !state.session) return;
+    if (!listenState || listenState.stopped) return;
+    if (Date.now() - listenState.lastSpeech < 1000) return;   // 你还在说 → 让保底判断接手
+    const t = $('answer-input').value.trim();
+    if (t.length < AUTO_SUBMIT_MIN_CHARS) return;
+    submitAnswer(true);
+  }, delay);
 }
 
 /** 当前麦克风音量（RMS 0~1），复用会前检测建立的 AudioContext */
@@ -767,7 +836,8 @@ function interruptInterviewer() {
   $('tile-ai').classList.remove('speaking');
   $('ai-caption').classList.add('hidden');
   clearTimeout(aiSpeakTimer); clearTimeout(aiCaptionTimer);
-  startListening({ auto: true });
+  // 留 250ms 让扬声器里的余音散掉，避免把自己的回声当成你的回答
+  setTimeout(() => { if (!recog && !micMuted && state.session) startListening({ auto: true }); }, 250);
   $('mic-status').textContent = '🎙 已打断面试官，请讲';
 }
 
@@ -801,7 +871,7 @@ function startListening({ auto = false } = {}) {
   const input = $('answer-input');
   listenState = {
     baseLen: input.value.length,
-    auto, stopped: false, gotResult: false,
+    auto, stopped: false, gotResult: false, lastFinal: '',
     engine: useLocal ? 'local' : 'webspeech',
     lastSpeech: Date.now(), restartTimer: null, noResultTimer: null
   };
@@ -821,10 +891,11 @@ function startListening({ auto = false } = {}) {
 
   r.onstart = () => {
     micBtnUI(true);
+    skipThink();   // 一开口就结束"思考计时"，避免界面还在数秒
     const tag = listenState.engine === 'local' ? '本地离线识别' : '在线识别';
-    $('mic-status').textContent = auto
-      ? `🎙 已自动开麦（${tag}），请直接开口作答（停顿没关系，面试官会听你讲完）`
-      : `🔴 正在聆听（${tag}）…请开始作答（再次点击麦克风或「发送」提交）`;
+    if ($('voice-engine')) $('voice-engine').textContent = tag + ' · 语音不出本机';
+    setVoiceState('live', '🔴 正在听你说…');
+    $('mic-status').textContent = '说完停顿一下就自动提交（点 🎙 也可立即提交）';
     setMeSpeaking(true);
     startMicLevel();
     scheduleTurnCheck();
@@ -832,28 +903,38 @@ function startListening({ auto = false } = {}) {
     clearTimeout(listenState.noResultTimer);
     listenState.noResultTimer = setTimeout(() => {
       if (recog && listenState && !listenState.stopped && !listenState.gotResult) {
-        $('mic-status').textContent = '⚠️ 已开麦但未收到识别结果：请确认麦克风没静音、说话音量足够大，或点击输入框打字作答';
+        setVoiceState('idle', '⚠️ 没听到声音');
+        $('mic-status').textContent = '已开麦但没收到识别结果：检查麦克风是否静音/选错设备（底栏「设备」可切换），或稍后重试';
       }
     }, 6000);
   };
 
-  // 两个引擎统一的结果处理
-  const handleResult = (final, interim) => {
-    if (!listenState.gotResult) {
+  // 两个引擎统一的结果处理（final=本段已确认文字，interim=正在说的临时文字，endpoint=这句说完了）
+  const handleResult = (final, interim, endpoint) => {
+    if (!listenState || listenState.stopped) return;
+    if (final || interim) {
       listenState.gotResult = true;
-      clearTimeout(listenState.noResultTimer);   // 识别服务正常，撤掉诊断提示
+      clearTimeout(listenState.noResultTimer);
     }
-    if (final) {
+    if (final && final !== listenState.lastFinal) {   // 去重：同一段落文本只追加一次
       input.value += final;
+      listenState.lastFinal = final;
       listenState.baseLen = input.value.length;
     }
     if (final || interim) listenState.lastSpeech = Date.now();
-    $('mic-status').textContent = '🔴 聆听中：' + (input.value.slice(listenState.baseLen) + interim).slice(-60);
+    renderVoice(interim || '');
+    setVoiceState('live', '🔴 正在听你说…');
+    $('mic-status').textContent = '说完停顿一下就自动提交（点 🎙 也可立即提交）';
+    // 引擎判定"这句说完了" → 短暂留出尾巴时间后立即提交，不用等、不用点
+    if (endpoint) {
+      listenState.lastFinal = '';                     // 新一段重新计
+      if (input.value.trim().length >= AUTO_SUBMIT_MIN_CHARS) scheduleAutoSubmit(1200);
+    }
     scheduleTurnCheck();
   };
 
   if (useLocal) {
-    r.onresult = e => handleResult(e.final || '', e.interim || '');
+    r.onresult = e => handleResult(e.final || '', e.interim || '', !!e.endpoint);
   } else {
     r.onresult = e => {
       let interim = '', final = '';
@@ -861,31 +942,34 @@ function startListening({ auto = false } = {}) {
         const t = e.results[i][0].transcript;
         if (e.results[i].isFinal) final += t; else interim += t;
       }
-      handleResult(final, interim);
+      handleResult(final, interim, false);
     };
   }
 
   r.onerror = e => {
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
       listenState.stopped = true;
-      $('mic-status').textContent = '❌ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风';
+      setVoiceState('idle', '❌ 麦克风没权限');
+      $('mic-status').textContent = '麦克风权限被拒绝：点地址栏左侧图标允许麦克风后刷新页面';
     } else if (e.error === 'local-asr-down') {
       listenState.stopped = true;
-      $('mic-status').textContent = '❌ 本地识别服务异常：请重启服务（双击 启动面试.bat），或暂时打字作答';
+      setVoiceState('idle', '❌ 识别服务异常');
+      $('mic-status').textContent = '本地识别服务异常：请重启服务（双击 启动面试.bat）后重试';
     } else if (e.error === 'network') {
       // 浏览器在线识别连不上：无缝切换到本地离线引擎（不置 stopped，onend 会自动续听并换引擎）
       listenState.netErrs = (listenState.netErrs || 0) + 1;
       if (window.LocalASR && LocalASR.available !== false) {
         asrPrefer = 'local';
-        $('mic-status').textContent = '🔄 在线识别不可用，正在切换到本地离线识别引擎…';
+        $('mic-status').textContent = '🔄 正在切换到本地离线识别引擎…';
       } else if (listenState.netErrs >= 2) {
         listenState.stopped = true;
-        $('mic-status').textContent = '❌ 语音识别服务不可用（在线识别连不上、本地引擎未就绪）。请改用 Edge，或直接打字作答';
+        setVoiceState('idle', '❌ 识别服务不可用');
+        $('mic-status').textContent = '在线识别连不上、本地引擎未就绪：请重启服务后重试';
       }
     } else if (e.error === 'no-speech') {
       // 静音超时，交给 onend 自动续听即可，不提示
     } else {
-      $('mic-status').textContent = '语音识别出错：' + e.error + '（将自动重试）';
+      $('mic-status').textContent = '识别重连中…';
     }
   };
 
@@ -896,14 +980,12 @@ function startListening({ auto = false } = {}) {
       && state.session && !aiSpeakingNow && !$('answer-input').disabled && !micMuted;
     if (canRestart) {
       // 断流 → 立刻无缝续听（若刚发生 network 错误，本次重启会换成本地引擎）
-      $('mic-status').textContent = '🔴 正在聆听…';
-      listenState.restartTimer = setTimeout(() => startListening({ auto: listenState.auto }), 250);
+      listenState.restartTimer = setTimeout(() => startListening({ auto: listenState.auto }), 200);
       return;
     }
-    // 识别服务不可用导致的停止：保留报错文案，别用"已停止收音"覆盖
-    if (listenState && listenState.netErrs >= 2 && asrPrefer !== 'local') { setMeSpeaking(false); return; }
+    // 识别服务不可用导致的停止：保留报错文案
     if (listenState && listenState.stopped && $('mic-status').textContent.startsWith('❌')) { setMeSpeaking(false); return; }
-    finishListenUI('已停止收音。可以继续补充或点击「发送」提交');
+    finishListenUI('已停止收音');
   };
   try {
     const p = r.start();
@@ -920,7 +1002,11 @@ function userStopListening() {
   }
   if (recog) { try { recog.stop(); } catch {} }
   micBtnUI(false);
-  finishListenUI('已停止收音。可以继续补充或点击「发送」提交');
+  // 点 🎙 ＝「我说完了」→ 有内容就直接提交，不让用户再多点一次
+  const t = $('answer-input').value.trim();
+  clearTimeout(autoSubmitTimer);
+  if (t.length >= 4 && state.session && !aiSpeakingNow) { submitAnswer(true); return; }
+  finishListenUI('已停止收音');
 }
 
 function quietStopListening(keepVoice) {
@@ -928,8 +1014,9 @@ function quietStopListening(keepVoice) {
     listenState.stopped = true;
     clearTimeout(listenState.restartTimer);
     clearTimeout(listenState.noResultTimer);
-    clearTimeout(turnCheckTimer);
+    clearTimeout(autoSubmitTimer);
   }
+  clearTimeout(turnCheckTimer);
   if (recog) { try { recog.stop(); } catch {} }
   recog = null;
   micBtnUI(false);
@@ -941,32 +1028,36 @@ function quietStopListening(keepVoice) {
 function finishListenUI(msg) {
   if (state.voiceSession) state.voiceSession.endTime = Date.now();
   $('mic-status').textContent = msg;
+  if (!aiSpeakingNow) setVoiceState('idle', $('answer-input').value.trim() ? '🎙 已暂停收音' : '🎙 等待面试官提问');
   setMeSpeaking(false);
 }
 
-/** 面试官智能回合判断：停顿时把当前回答发给后端，由面试官 AI 决定"说完了"还是"卡住了" */
+/** 面试官智能回合判断：有内容就快速直接提交；长时间没开口才请面试官引导 */
 function scheduleTurnCheck() {
   if (!listenState || listenState.stopped) return;
   clearTimeout(turnCheckTimer);
-  const hasContent = $('answer-input').value.trim().length >= 4;
+  const hasContent = $('answer-input').value.trim().length >= AUTO_SUBMIT_MIN_CHARS;
   const wait = hasContent ? TURN_CHECK_IDLE_MS : TURN_CHECK_EMPTY_MS;
   turnCheckTimer = setTimeout(runTurnCheck, wait);
 }
 
 async function runTurnCheck() {
   if (!recog || !listenState || listenState.stopped || turnChecking || aiSpeakingNow) return;
-  const hasContent = $('answer-input').value.trim().length >= 4;
+  const text = $('answer-input').value.trim();
+  const hasContent = text.length >= AUTO_SUBMIT_MIN_CHARS;
   const idle = Date.now() - listenState.lastSpeech;
   const need = hasContent ? TURN_CHECK_IDLE_MS : TURN_CHECK_EMPTY_MS;
   if (idle < need - 300) { scheduleTurnCheck(); return; }      // 用户还在说/刚又说了一句
+  // 说完了 → 立即提交，不再绕大模型（省 1~2 秒，体验更快）
+  if (hasContent) { submitAnswer(true); return; }
   if ((state.nudgeCount || 0) >= TURN_NUDGE_MAX) {
-    $('mic-status').textContent = '🔴 仍在聆听。如果说完了，点击「发送」或再点一次 🎙 提交';
+    $('mic-status').textContent = '🔴 仍在听你说。说完停顿一下就会自动提交，也可以点一下 🎙 立即提交';
     return;                                                     // 引导次数用完，安静等待
   }
   turnChecking = true;
-  const text = $('answer-input').value.trim();
   const lastAt = listenState.lastSpeech;                        // 快照：判断期间用户若又开口则作废
-  $('mic-status').textContent = '🤔 面试官在听你刚才说的…';
+  setVoiceState('thinking', '🤔 等你开口…');
+  $('mic-status').textContent = '还没听到你的回答，面试官准备提示你';
   try {
     const r = await API('/api/interview/turn-check', {
       sessionId: state.session.id,
@@ -975,14 +1066,10 @@ async function runTurnCheck() {
     });
     if (!listenState || listenState.stopped || !recog) return;
     if (listenState.lastSpeech !== lastAt) { scheduleTurnCheck(); return; } // 你又开口了，继续听
-    if (r.finished && text.length >= 4) {
-      submitAnswer(true);                                        // 面试官判断你说完了 → 正常进入下一环节
-    } else {
-      // 面试官觉得你没说完/卡住了 → 说一句引导语，说完自动重新开麦
-      state.nudgeCount = (state.nudgeCount || 0) + 1;
-      quietStopListening(true);                                  // 暂停收音，避免把面试官的话录进你的回答
-      addMsg('ai', r.nudge, true);
-    }
+    // 面试官觉得你没说完/卡住了 → 说一句引导语，说完自动重新开麦
+    state.nudgeCount = (state.nudgeCount || 0) + 1;
+    quietStopListening(true);                                  // 暂停收音，避免把面试官的话录进你的回答
+    addMsg('ai', r.nudge, true);
   } catch {
     scheduleTurnCheck();                                         // 网络抖动：过一会再判断
   } finally {
@@ -991,13 +1078,11 @@ async function runTurnCheck() {
 }
 
 /** 面试官说完 → 自动开麦（语音优先的核心）；若处于思考倒计时，则等倒计时结束 */
-function scheduleAutoListen(delay = 600) {
+function scheduleAutoListen(delay = 400) {
   if (!$('auto-mic') || !$('auto-mic').checked) return;
   if (!state.session || state.session.mode === 'text') return;
   if (micMuted || recog || aiSpeakingNow) return;
-  if (state.thinkUntil && Date.now() < state.thinkUntil) {
-    delay = Math.max(delay, state.thinkUntil - Date.now() + 400);
-  }
+  // 不再等"思考倒计时"结束：面试官一说完就开麦，你想提前开口也录得到
   setTimeout(() => {
     if (!recog && !aiSpeakingNow && state.session && !$('answer-input').disabled) startListening({ auto: true });
   }, delay);
@@ -1577,13 +1662,6 @@ async function adminExport() {
 /* ---------------- 初始化 ---------------- */
 (async function init() {
   try { await ensureAIReady(); } catch {}
-  $('answer-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitAnswer();
-  });
-  // 打字时视为仍在"说话"，避免面试官在你编辑文字时插话判断
-  $('answer-input').addEventListener('input', () => {
-    if (listenState) listenState.lastSpeech = Date.now();
-  });
   window.addEventListener('online', updateNetStatus);
   window.addEventListener('offline', updateNetStatus);
   window.addEventListener('beforeunload', () => { try { cleanupMeeting(); } catch {} });

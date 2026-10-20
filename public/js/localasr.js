@@ -10,7 +10,7 @@
  *   engine.start() / engine.stop()
  */
 (function () {
-  const CHUNK_MS = 600;
+  const CHUNK_MS = 160;   // 分片越短，字幕出得越快（160ms 一片，接近实时字幕）
   let availableCache = null;
 
   async function check() {
@@ -67,7 +67,7 @@
           audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
         source = audioCtx.createMediaStreamSource(stream);
-        processor = audioCtx.createScriptProcessor(4096, 1, 1);
+        processor = audioCtx.createScriptProcessor(2048, 1, 1);   // 128ms 一帧，延迟更低
         const nativeRate = audioCtx.sampleRate;
         pcmQueue = [];
 
@@ -135,8 +135,11 @@
         });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || 'asr failed');
-        if (!stopped && engine.onresult && j.text) {
-          engine.onresult({ final: j.endpoint ? j.text : '', interim: j.endpoint ? '' : j.text });
+        if (!stopped && engine.onresult) {
+          // endpoint=true 表示"这一句说完了"（引擎检测到停顿）；此时 text 是本段完整文字，
+          // 其余时刻 text 是同一段的增量结果，仅用于实时字幕预览（不追加，避免重复）
+          if (j.endpoint) engine.onresult({ final: j.text || '', interim: '', endpoint: true });
+          else if (j.text) engine.onresult({ final: '', interim: j.text, endpoint: false });
         }
       } catch (e) {
         if (!stopped && engine.onerror) engine.onerror({ error: 'local-asr-down' });

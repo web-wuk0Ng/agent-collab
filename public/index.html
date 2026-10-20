@@ -195,13 +195,23 @@
         <div id="mtab-chat" class="side-body">
           <div id="chat-log" class="chat-log"></div>
           <div class="chat-input">
-            <div class="input-row">
-              <button id="btn-mic" class="btn mic" onclick="toggleMic()" title="语音作答">🎙</button>
-              <textarea id="answer-input" rows="2" placeholder="面试官提问后直接开口作答，中途停顿没关系——面试官会判断你是否说完；也可以打字，或点「回答完毕」主动提交"></textarea>
-              <button class="btn primary" onclick="submitAnswer()">回答完毕</button>
+            <!-- 纯语音作答：实时字幕，说完自动提交（无打字、无发送按钮） -->
+            <div class="voice-panel">
+              <div class="voice-head">
+                <span id="voice-state" class="voice-state idle">🎙 等待面试官提问</span>
+                <span id="voice-engine" class="voice-engine"></span>
+              </div>
+              <div id="voice-live" class="voice-live empty">
+                <span id="voice-confirmed"></span><span id="voice-interim" class="interim"></span>
+                <span id="voice-placeholder" class="vl-placeholder">面试官提问后直接开口作答，说完自动提交，不用点任何按钮</span>
+              </div>
+              <div id="mic-level" class="mic-level hidden"><i></i></div>
+              <div class="voice-foot">
+                <button id="btn-mic" class="vbtn mic-idle" onclick="toggleMic()" title="开麦 / 说完提交">🎙</button>
+                <span id="mic-status" class="mic-status">准备就绪</span>
+              </div>
+              <textarea id="answer-input" class="hidden" aria-hidden="true"></textarea>
             </div>
-            <div id="mic-level" class="mic-level hidden"><i></i></div>
-            <div id="mic-status" class="mic-status"></div>
           </div>
         </div>
 
@@ -259,6 +269,14 @@
         <label for="mtg-mic-select">麦克风</label>
         <select id="mtg-mic-select" onchange="selectMicDevice(this.value)"></select>
         <button class="dev-refresh" onclick="refreshMicDevices(true)" title="重新扫描设备">🔄</button>
+      </div>
+      <div class="dev-row">
+        <label for="mtg-asr-select">识别引擎</label>
+        <select id="mtg-asr-select" onchange="setAsrPrefer(this.value)">
+          <option value="auto">自动（推荐）</option>
+          <option value="local">本地离线（语音不出本机）</option>
+          <option value="webspeech">浏览器在线（仅 Edge 可用）</option>
+        </select>
       </div>
       <div class="dev-row">
         <span class="dev-label">输入音量</span>
