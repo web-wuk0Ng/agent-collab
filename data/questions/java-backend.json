@@ -2,79 +2,466 @@
   "position": "java-backend",
   "name": "Java 后端开发工程师",
   "intro": "负责服务端业务逻辑、接口设计与高并发系统。面试重点：Java 基础与 JVM、并发编程、Spring 生态、数据库与缓存、系统设计。",
-  "skills": ["Java 基础", "JVM", "并发编程", "Spring / Spring Boot", "MySQL", "Redis", "消息队列", "分布式基础"],
+  "skills": [
+    "Java 基础",
+    "JVM",
+    "并发编程",
+    "Spring / Spring Boot",
+    "MySQL",
+    "Redis",
+    "消息队列",
+    "分布式基础"
+  ],
   "questions": [
     {
-      "id": "jb-t1", "type": "tech", "stage": "warm",
+      "id": "jb-t1",
+      "type": "tech",
+      "stage": "warm",
       "text": "请你先简单介绍一下 HashMap 的底层实现原理，JDK 8 之后做了哪些改进？",
-      "keywords": ["数组", "链表", "红黑树", "哈希", "扩容", "扰动"],
-      "points": ["数组+链表+红黑树结构", "链表长度超8且数组长度>=64转红黑树", "扩容机制与负载因子0.75", "JDK8头插改尾插解决死循环"]
+      "keywords": [
+        "数组",
+        "链表",
+        "红黑树",
+        "哈希",
+        "扩容",
+        "扰动"
+      ],
+      "points": [
+        "数组+链表+红黑树结构",
+        "链表长度超8且数组长度>=64转红黑树",
+        "扩容机制与负载因子0.75",
+        "JDK8头插改尾插解决死循环"
+      ],
+      "hint": "先讲数组+链表结构，再讲 JDK8 的三次升级：链表长度≥8 且数组长度≥64 转红黑树、扩容优化（高低位拆分）、扰动函数，可顺带提并发下的问题与 ConcurrentHashMap。"
     },
     {
-      "id": "jb-t2", "type": "tech", "stage": "core",
+      "id": "jb-t2",
+      "type": "tech",
+      "stage": "core",
       "text": "谈谈你对 Java 内存模型（JMM）的理解？volatile 关键字能解决什么问题，不能解决什么问题？",
-      "keywords": ["可见性", "有序性", "原子性", "happens-before", "指令重排", "内存屏障"],
-      "points": ["JMM主内存与工作内存", "volatile保证可见性与有序性", "不保证原子性（如i++）", "happens-before规则", "内存屏障禁止重排"]
+      "keywords": [
+        "可见性",
+        "有序性",
+        "原子性",
+        "happens-before",
+        "指令重排",
+        "内存屏障"
+      ],
+      "points": [
+        "JMM主内存与工作内存",
+        "volatile保证可见性与有序性",
+        "不保证原子性（如i++）",
+        "happens-before规则",
+        "内存屏障禁止重排"
+      ],
+      "hint": "结构：主内存/工作内存 → 三大特性 → volatile 保证可见性+有序性但不保证原子性（举 i++ 例子）→ happens-before 与内存屏障，体现深度。"
     },
     {
-      "id": "jb-t3", "type": "tech", "stage": "core",
+      "id": "jb-t3",
+      "type": "tech",
+      "stage": "core",
       "text": "线程池的核心参数有哪些？如果让你来配置一个处理 IO 密集型任务的线程池，你会怎么设置，为什么？",
-      "keywords": ["corePoolSize", "maximumPoolSize", "队列", "拒绝策略", "keepAlive", "IO密集"],
-      "points": ["七大核心参数完整说出", "IO密集可设2N或N+1左右核心线程", "有界队列避免OOM", "合理选择拒绝策略并支持告警"]
+      "keywords": [
+        "corePoolSize",
+        "maximumPoolSize",
+        "队列",
+        "拒绝策略",
+        "keepAlive",
+        "IO密集"
+      ],
+      "points": [
+        "七大核心参数完整说出",
+        "IO密集可设2N或N+1左右核心线程",
+        "有界队列避免OOM",
+        "合理选择拒绝策略并支持告警"
+      ],
+      "hint": "先背出 7 个核心参数（corePoolSize、maximumPoolSize、keepAliveTime、workQueue、threadFactory、handler、unit），再给 IO 密集公式（2N 或 N/(1-阻塞系数)），说明队列与拒绝策略的选择。"
     },
     {
-      "id": "jb-t4", "type": "tech", "stage": "core",
+      "id": "jb-t4",
+      "type": "tech",
+      "stage": "core",
       "text": "Spring Bean 的生命周期大致是怎样的？@Autowired 和 @Resource 有什么区别？",
-      "keywords": ["实例化", "属性注入", "初始化", "Aware", "BeanPostProcessor", "byType", "byName"],
-      "points": ["实例化→属性注入→Aware→BeanPostProcessor前置→初始化→后置→销毁", "@Autowired按类型byType", "@Resource默认按名称byName", "循环依赖三级缓存"]
+      "keywords": [
+        "实例化",
+        "属性注入",
+        "初始化",
+        "Aware",
+        "BeanPostProcessor",
+        "byType",
+        "byName"
+      ],
+      "points": [
+        "实例化→属性注入→Aware→BeanPostProcessor前置→初始化→后置→销毁",
+        "@Autowired按类型byType",
+        "@Resource默认按名称byName",
+        "循环依赖三级缓存"
+      ],
+      "hint": "按 实例化→属性注入→Aware→BeanPostProcessor 前置→初始化→后置→使用→销毁 的顺序讲；@Autowired 按类型、@Resource 按名称，顺带提 @Primary 与构造器注入的推荐理由。"
     },
     {
-      "id": "jb-t5", "type": "tech", "stage": "core",
+      "id": "jb-t5",
+      "type": "tech",
+      "stage": "core",
       "text": "MySQL 中什么情况下索引会失效？一条 SQL 查询很慢，你的排查思路是什么？",
-      "keywords": ["最左前缀", "隐式转换", "函数", "like", "explain", "执行计划", "慢日志"],
-      "points": ["最左前缀原则", "对索引列使用函数或运算", "隐式类型转换", "like以%开头", "explain查看type/key/rows", "慢查询日志定位"]
+      "keywords": [
+        "最左前缀",
+        "隐式转换",
+        "函数",
+        "like",
+        "explain",
+        "执行计划",
+        "慢日志"
+      ],
+      "points": [
+        "最左前缀原则",
+        "对索引列使用函数或运算",
+        "隐式类型转换",
+        "like以%开头",
+        "explain查看type/key/rows",
+        "慢查询日志定位"
+      ],
+      "hint": "索引失效场景列举（最左前缀、函数/运算、隐式转换、like %x、or、数据量小全表更快）→ explain 关键列（type、key、rows、Extra）→ 慢日志 → 改写 SQL 或建索引。"
     },
     {
-      "id": "jb-t6", "type": "tech", "stage": "deep",
+      "id": "jb-t6",
+      "type": "tech",
+      "stage": "deep",
       "text": "Redis 缓存与数据库的一致性怎么保证？先删缓存还是先更新数据库，为什么？",
-      "keywords": ["Cache Aside", "延迟双删", "先更新数据库", "binlog", "过期时间"],
-      "points": ["Cache Aside模式先更新库再删缓存", "延迟双删应对并发读写", "设置兜底过期时间", "可通过binlog订阅异步删除"]
+      "keywords": [
+        "Cache Aside",
+        "延迟双删",
+        "先更新数据库",
+        "binlog",
+        "过期时间"
+      ],
+      "points": [
+        "Cache Aside模式先更新库再删缓存",
+        "延迟双删应对并发读写",
+        "设置兜底过期时间",
+        "可通过binlog订阅异步删除"
+      ],
+      "hint": "结论先行：推荐先更新数据库再删缓存（Cache Aside），配合延迟双删/过期时间兜底；分析各自的不一致窗口，提及 binlog 订阅（Canal）方案是加分项。"
     },
     {
-      "id": "jb-p1", "type": "project", "stage": "core",
+      "id": "jb-p1",
+      "type": "project",
+      "stage": "core",
       "text": "介绍一个你做过的最有挑战的后端项目：它解决什么问题？系统架构是怎样的？你负责哪一部分？",
-      "keywords": ["架构", "模块", "负责", "技术选型", "难点"],
-      "points": ["背景与目标清晰", "架构分层讲清（网关/服务/存储）", "明确个人职责边界", "能说出技术选型理由"]
+      "keywords": [
+        "架构",
+        "模块",
+        "负责",
+        "技术选型",
+        "难点"
+      ],
+      "points": [
+        "背景与目标清晰",
+        "架构分层讲清（网关/服务/存储）",
+        "明确个人职责边界",
+        "能说出技术选型理由"
+      ],
+      "hint": "用 STAR：背景与规模（QPS/数据量）→ 架构图式描述分层与选型 → 明确\"我负责\"的模块 → 遇到的坑与结果数据，控制在两分钟内。"
     },
     {
-      "id": "jb-p2", "type": "project", "stage": "deep",
+      "id": "jb-p2",
+      "type": "project",
+      "stage": "deep",
       "text": "在你刚才说的项目里，遇到过最难的技术问题是什么？你是怎么定位和解决的？",
-      "keywords": ["定位", "日志", "排查", "解决", "验证"],
-      "points": ["问题现象描述具体", "有清晰的排查路径（日志/监控/压测）", "解决方案有对比和取舍", "有复盘和沉淀"]
+      "keywords": [
+        "定位",
+        "日志",
+        "排查",
+        "解决",
+        "验证"
+      ],
+      "points": [
+        "问题现象描述具体",
+        "有清晰的排查路径（日志/监控/压测）",
+        "解决方案有对比和取舍",
+        "有复盘和沉淀"
+      ],
+      "hint": "选一个真实深入的问题：现象→排查过程（日志/监控/压测/arthas 等工具）→根因→解决方案→量化结果，突出方法论而不是运气。"
     },
     {
-      "id": "jb-s1", "type": "scenario", "stage": "core",
+      "id": "jb-s1",
+      "type": "scenario",
+      "stage": "core",
       "text": "如果线上一个接口突然从 50ms 飙到 3 秒，大量请求超时，服务是你负责的，你的处理步骤是什么？",
-      "keywords": ["止损", "日志", "监控", "慢SQL", "GC", "回滚", "扩容"],
-      "points": ["先止血（限流/回滚/扩容）再排查", "看监控定位层（网关/应用/DB）", "检查GC、慢SQL、下游依赖", "事后复盘与预防"]
+      "keywords": [
+        "止损",
+        "日志",
+        "监控",
+        "慢SQL",
+        "GC",
+        "回滚",
+        "扩容"
+      ],
+      "points": [
+        "先止血（限流/回滚/扩容）再排查",
+        "看监控定位层（网关/应用/DB）",
+        "检查GC、慢SQL、下游依赖",
+        "事后复盘与预防"
+      ],
+      "hint": "先止血后查因：看监控定位是全服务还是单接口→是否发布/流量变化→降级限流保住大盘→定位根因（慢SQL/GC/下游）→修复复盘。体现应急 SOP 意识。"
     },
     {
-      "id": "jb-s2", "type": "scenario", "stage": "deep",
+      "id": "jb-s2",
+      "type": "scenario",
+      "stage": "deep",
       "text": "设计一个短链接服务：百万级日访问量，要求生成短码并支持 302 跳转，说说你的整体方案。",
-      "keywords": ["发号器", "哈希", "布隆过滤器", "缓存", "302", "幂等"],
-      "points": ["短码生成方案（发号器或哈希+冲突处理）", "读写分离与热点缓存", "302 vs 301的取舍", "容量估算与扩展性"]
+      "keywords": [
+        "发号器",
+        "哈希",
+        "布隆过滤器",
+        "缓存",
+        "302",
+        "幂等"
+      ],
+      "points": [
+        "短码生成方案（发号器或哈希+冲突处理）",
+        "读写分离与热点缓存",
+        "302 vs 301的取舍",
+        "容量估算与扩展性"
+      ],
+      "hint": "从 发号（哈希/自增+62进制/布隆去重）→存储（KV 映射）→跳转（302 而非 301 便于统计）→高并发读（多级缓存）→防滥用 依次展开，给出量级估算。"
     },
     {
-      "id": "jb-b1", "type": "behavior", "stage": "warm",
+      "id": "jb-b1",
+      "type": "behavior",
+      "stage": "warm",
       "text": "请用两分钟做一个自我介绍，重点讲和后端开发相关的经历。",
-      "keywords": ["教育", "技能", "项目", "求职意向"],
-      "points": ["结构清晰（我是谁-会什么-做过什么-想要什么）", "时长约1-2分钟", "突出与岗位匹配的技能", "不背简历、有重点"]
+      "keywords": [
+        "教育",
+        "技能",
+        "项目",
+        "求职意向"
+      ],
+      "points": [
+        "结构清晰（我是谁-会什么-做过什么-想要什么）",
+        "时长约1-2分钟",
+        "突出与岗位匹配的技能",
+        "不背简历、有重点"
+      ],
+      "hint": "身份定位（学校/方向）→ 2~3 个与后端强相关的经历（项目+技能）→ 一句话说明匹配岗位的原因，节奏紧凑不背简历。"
     },
     {
-      "id": "jb-b2", "type": "behavior", "stage": "deep",
+      "id": "jb-b2",
+      "type": "behavior",
+      "stage": "deep",
       "text": "和团队成员在技术方案上有分歧时，你会怎么处理？举一个实际例子。",
-      "keywords": ["沟通", "数据", "验证", "妥协", "结果"],
-      "points": ["尊重事实用数据说话", "先倾听对方理由", "小流量验证或基准测试", "对事不对人"]
+      "keywords": [
+        "沟通",
+        "数据",
+        "验证",
+        "妥协",
+        "结果"
+      ],
+      "points": [
+        "尊重事实用数据说话",
+        "先倾听对方理由",
+        "小流量验证或基准测试",
+        "对事不对人"
+      ],
+      "hint": "先讲处理原则（对事不对人、用数据和实验说话），再讲一个真实分歧案例：双方依据→验证方式→结果→关系维护，最后反思收获。"
+    },
+    {
+      "id": "jb-t7",
+      "type": "tech",
+      "stage": "core",
+      "text": "MySQL 的四个事务隔离级别分别解决什么问题？InnoDB 的 MVCC 是怎么实现的？",
+      "keywords": [
+        "读未提交",
+        "读已提交",
+        "可重复读",
+        "串行化",
+        "MVCC",
+        "undo log",
+        "ReadView"
+      ],
+      "points": [
+        "脏读/不可重复读/幻读",
+        "RR 是默认级别",
+        "版本链与 ReadView",
+        "快照读与当前读"
+      ],
+      "hint": "先列四个级别与对应解决的并发问题，再讲 MVCC 三件套（隐藏列、undo log 版本链、ReadView），点出 RC 与 RR 生成 ReadView 时机的差异。"
+    },
+    {
+      "id": "jb-t8",
+      "type": "tech",
+      "stage": "core",
+      "text": "Spring Boot 的自动装配（Auto Configuration）是怎么工作的？讲讲 @SpringBootApplication 背后的机制。",
+      "keywords": [
+        "@EnableAutoConfiguration",
+        "spring.factories",
+        "AutoConfiguration.imports",
+        "条件注解",
+        "SPI"
+      ],
+      "points": [
+        "三个注解的组合",
+        "配置文件加载与筛选",
+        "@ConditionalOnX 条件装配",
+        "自定义 starter 思路"
+      ],
+      "hint": "拆解 @SpringBootApplication 三层结构 → 自动配置从 AutoConfiguration.imports 读取候选 → @ConditionalOnClass 等条件筛选 → 举自定义 starter 的例子收尾。"
+    },
+    {
+      "id": "jb-t9",
+      "type": "tech",
+      "stage": "deep",
+      "text": "JVM 常见的垃圾回收器你了解哪些？如果线上频繁 Full GC，你会怎么排查和调优？",
+      "keywords": [
+        "CMS",
+        "G1",
+        "分代收集",
+        "jstat",
+        "jmap",
+        "内存泄漏"
+      ],
+      "points": [
+        "分代与回收流程",
+        "G1 的 Region 思想",
+        "排查工具链",
+        "常见泄漏来源"
+      ],
+      "hint": "先讲分代模型与 CMS/G1 的取舍，再给排查链路：jstat 看 GC 频率 → jmap/mat 分析堆快照找大对象与泄漏点 → 调整堆大小或修复代码。"
+    },
+    {
+      "id": "jb-t10",
+      "type": "tech",
+      "stage": "deep",
+      "text": "使用消息队列（如 RocketMQ/Kafka）时，如何保证消息不丢失？消息重复消费又怎么处理？",
+      "keywords": [
+        "确认机制",
+        "持久化",
+        "刷盘",
+        "幂等",
+        "偏移量"
+      ],
+      "points": [
+        "生产端确认重试",
+        "Broker 持久化与副本",
+        "消费端手动 ACK",
+        "幂等设计"
+      ],
+      "hint": "按 生产→存储→消费 三段分别讲不丢的手段（confirm/ACK/刷盘副本），重复消费用唯一键+数据库/Redis 幂等表解决，说明\"至少一次+幂等\"是通用范式。"
+    },
+    {
+      "id": "jb-p3",
+      "type": "project",
+      "stage": "core",
+      "text": "如果你做过或了解秒杀、抢票这类高并发场景的项目，说说它的架构要点：怎么扛住瞬时流量并防止超卖？",
+      "keywords": [
+        "削峰",
+        "库存预扣",
+        "Lua",
+        "限流",
+        "超卖"
+      ],
+      "points": [
+        "流量漏斗分层",
+        "Redis 原子扣减",
+        "MQ 异步落库",
+        "防超卖与防刷"
+      ],
+      "hint": "按漏斗讲：前端静态化与按钮防重 → 网关限流 → Redis+Lua 原子扣库存 → MQ 削峰异步建单 → DB 兜底；没做过就讲方案设计，强调层次感。"
+    },
+    {
+      "id": "jb-p4",
+      "type": "project",
+      "stage": "deep",
+      "text": "讲一个你做过的接口性能优化：优化前后的指标分别是多少？你做了哪些改动？",
+      "keywords": [
+        "压测",
+        "慢SQL",
+        "缓存",
+        "批处理",
+        "RT"
+      ],
+      "points": [
+        "基线指标与目标",
+        "定位瓶颈手段",
+        "具体优化项",
+        "优化后收益"
+      ],
+      "hint": "用数字讲故事：优化前 QPS/RT → 火焰图或慢查询定位瓶颈（N+1 查询、串行 RPC）→ 加缓存/批量/并行改造 → 优化后数据，对比越具体越有说服力。"
+    },
+    {
+      "id": "jb-s3",
+      "type": "scenario",
+      "stage": "core",
+      "text": "你的服务强依赖的下级服务突然大量超时，请求开始堆积，线程池快满了。这时你怎么办？",
+      "keywords": [
+        "熔断",
+        "降级",
+        "超时",
+        "舱壁",
+        "限流"
+      ],
+      "points": [
+        "先保自己不死",
+        "熔断与快速失败",
+        "降级预案（兜底数据/默认值）",
+        "恢复后自动半开"
+      ],
+      "hint": "核心是\"失败要快\"：设超时与熔断（Sentinel/Resilience4j）阻断堆积 → 走降级兜底逻辑 → 关键接口限流保核心 → 复盘依赖方为什么挂。"
+    },
+    {
+      "id": "jb-s4",
+      "type": "scenario",
+      "stage": "deep",
+      "text": "设计一个全站排行榜系统：要求实时展示点赞/积分 Top 100，用户量千万级，说说你的存储与计算方案。",
+      "keywords": [
+        "Redis ZSet",
+        "分片",
+        "定时聚合",
+        "热点"
+      ],
+      "points": [
+        "ZSet 结构与命令",
+        "大 key 与分桶",
+        "持久化与一致性",
+        "冷热分层"
+      ],
+      "hint": "主方案 Redis ZSet（ZINCRBY+ZREVRANGE）→ 讨论千万级大 key 的分桶聚合 → 定时任务落库持久化 → 防刷票的频控，体现方案演进思维。"
+    },
+    {
+      "id": "jb-b3",
+      "type": "behavior",
+      "stage": "warm",
+      "text": "你为什么选择后端开发这个方向？未来 3 年的职业规划是什么？",
+      "keywords": [
+        "兴趣起源",
+        "能力匹配",
+        "成长路径"
+      ],
+      "points": [
+        "真实的动机故事",
+        "与岗位能力匹配",
+        "短期具体+中期方向"
+      ],
+      "hint": "动机要具体（某个项目/课程点燃的兴趣），规划分两段：前 1-2 年夯实工程与业务，2-3 年深入某个领域（高并发/中间件/架构），避免空喊口号。"
+    },
+    {
+      "id": "jb-b4",
+      "type": "behavior",
+      "stage": "deep",
+      "text": "讲一次你在时间紧、任务重的情况下（比如项目临近截止还有大块功能没完成）是怎么应对的？",
+      "keywords": [
+        "优先级",
+        "拆解",
+        "沟通",
+        "结果"
+      ],
+      "points": [
+        "任务拆解与排序",
+        "及时同步风险",
+        "砍范围保核心",
+        "复盘沉淀"
+      ],
+      "hint": "结构：盘点任务与剩余时间 → 与导师/团队对齐优先级、砍出 MVP → 加班与提效手段 → 按时交付的结果与复盘，突出沟通而不是硬扛。"
     }
   ]
 }

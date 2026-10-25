@@ -165,7 +165,7 @@ const routes = {
     // 用 LLM 生成面试官开场白（离线引擎也有对应实现）
     const greeting = await llm.interviewerGreeting(p.position, firstQ, p.rounds || 6);
     db.saveSession(session);
-    return { sessionId: session.id, greeting, question: { id: firstQ.id, type: firstQ.type, text: firstQ.text, index: 0 }, planSize: plan.length, jdApplied };
+    return { sessionId: session.id, greeting, question: { id: firstQ.id, type: firstQ.type, text: firstQ.text, points: firstQ.points || [], hint: firstQ.hint || '', index: 0 }, planSize: plan.length, jdApplied };
   },
 
   // 提交一轮回答（含追问），返回 AI 面试官下一句话

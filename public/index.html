@@ -89,53 +89,62 @@
 <!-- ============ 面试房间（腾讯会议风格 · 会前检测 → 视频会议） ============ -->
 <main id="view-interview" class="view view-meeting hidden">
 
-  <!-- ① 会前设备检测（加入会议前页） -->
+  <!-- ① 会前设备检测（牛客「设备与网络检测」风格） -->
   <section id="prejoin" class="prejoin">
-    <div class="pj-left">
-      <div class="pj-screen">
-        <video id="pj-video" autoplay playsinline muted></video>
-        <div id="pj-video-off" class="pj-video-off">
-          <span>🎥</span>
-          <div>摄像头未开启</div>
-          <small>点击下方「摄像头」开启预览</small>
+    <div class="pj-modal">
+      <button class="pj-close" onclick="leavePrejoin()" title="返回">✕</button>
+      <!-- 左：圆形摄像头预览 + 设备选择 -->
+      <div class="pj-left">
+        <div class="pj-round">
+          <video id="pj-video" autoplay playsinline muted></video>
+          <div id="pj-video-off" class="pj-video-off">
+            <span>🎥</span>
+            <small>摄像头未开启</small>
+          </div>
         </div>
-        <div class="pj-self">我</div>
-        <div class="pj-privacy">🔒 画面与音频仅在本机处理，不上传、不录制</div>
-      </div>
-      <div class="pj-devpick">
-        <label for="pj-mic-select">🎙 麦克风设备</label>
-        <select id="pj-mic-select" onchange="selectMicDevice(this.value)"></select>
-        <button class="dev-refresh" onclick="refreshMicDevices(true)" title="重新扫描设备（插拔麦克风后点这里）">🔄</button>
-        <span id="pj-mic-devhint" class="dev-hint">说话试试，右侧音量条会跟着动</span>
-      </div>
-      <div class="pj-devbar">
-        <button id="pj-mic-btn" class="pj-dev on" onclick="prejoinToggleMic()"><i>🎙</i><span>麦克风</span></button>
-        <button id="pj-cam-btn" class="pj-dev on" onclick="prejoinToggleCam()"><i>🎥</i><span>摄像头</span></button>
-        <button class="pj-dev" onclick="prejoinTestSpeaker()"><i>🔊</i><span>扬声器测试</span></button>
-        <button class="pj-dev" id="pj-voice-btn" onclick="voiceSelfTest()"><i>🗣</i><span>识别测试</span></button>
-        <div class="pj-meter">
-          <span>输入音量</span>
+        <div class="pj-devrow">
+          <label for="pj-cam-select">切换摄像头</label>
+          <select id="pj-cam-select" onchange="selectCamDevice(this.value)"></select>
+        </div>
+        <div class="pj-devrow">
+          <label for="pj-mic-select">切换麦克风</label>
+          <select id="pj-mic-select" onchange="selectMicDevice(this.value)"></select>
+          <button class="dev-refresh" onclick="refreshMicDevices(true);refreshCamDevices(true)" title="重新扫描设备（插拔后点这里）">🔄</button>
+        </div>
+        <div class="pj-micbar">
+          <span>🎙</span>
           <div class="meter"><i id="pj-meter-fill"></i></div>
         </div>
+        <div class="pj-devbar">
+          <button id="pj-mic-btn" class="pj-dev on" onclick="prejoinToggleMic()"><i>🎙</i><span>麦克风</span></button>
+          <button id="pj-cam-btn" class="pj-dev on" onclick="prejoinToggleCam()"><i>🎥</i><span>摄像头</span></button>
+          <button class="pj-dev" onclick="prejoinTestSpeaker()"><i>🔊</i><span>扬声器测试</span></button>
+          <button class="pj-dev" id="pj-voice-btn" onclick="voiceSelfTest()"><i>🗣</i><span>识别测试</span></button>
+        </div>
+        <a class="pj-help" onclick="voiceSelfTest()">遇到设备问题怎么办？→ 用「识别测试」说句话试试</a>
+      </div>
+      <!-- 右：检测清单 -->
+      <div class="pj-right">
+        <h2>设备与网络检测</h2>
+        <div class="pj-checks">
+          <div class="pj-check ok" id="ck-net"><i>📡</i><span>网络检测</span><b id="ck-net-st">✓</b></div>
+          <div class="pj-check" id="ck-cam" onclick="prejoinToggleCam()" title="点击开启/关闭摄像头"><i>📷</i><span>摄像头</span><b id="ck-cam-st">—</b></div>
+          <div class="pj-check" id="ck-spk" onclick="prejoinTestSpeaker()" title="点击播放提示音"><i>🔊</i><span>声音检测</span><b id="ck-spk-st">—</b></div>
+          <div class="pj-check" id="ck-mic"><i>🎤</i><span>麦克风</span><b id="ck-mic-st">—</b></div>
+        </div>
+        <div class="pj-info">
+          <div><span>面试岗位</span><b id="pj-pos">-</b></div>
+          <div><span>面试轮次</span><b id="pj-rounds">-</b></div>
+          <div><span>会议号</span><b id="pj-meeting-id">-</b></div>
+          <div><span>面试模式</span><b id="pj-mode">视频面试</b></div>
+        </div>
+        <p class="pj-hint" id="pj-hint">💡 建议佩戴耳机、保持环境安静、正对摄像头；AI 面试官会实时分析你的仪态与表达。</p>
+        <div id="pj-voice-result" class="pj-voice-result hidden"></div>
+        <button id="pj-join" class="pj-cta" onclick="joinMeeting()">进入面试间</button>
+        <button class="btn ghost full" style="margin-top:8px" onclick="leavePrejoin()">返回岗位选择</button>
+        <p class="pj-privacy">🔒 画面与音频仅在本机处理，不上传、不录制</p>
       </div>
     </div>
-
-    <aside class="pj-right">
-      <div class="pj-logo">🪞 面镜 MockMirror</div>
-      <h2>会前设备检测</h2>
-      <p class="pj-sub">确认画面与声音正常后，加入本次模拟面试会议</p>
-      <div class="pj-info">
-        <div><span>面试岗位</span><b id="pj-pos">-</b></div>
-        <div><span>面试轮次</span><b id="pj-rounds">-</b></div>
-        <div><span>会议号</span><b id="pj-meeting-id">-</b></div>
-        <div><span>参会人</span><b>我 · AI 面试官</b></div>
-        <div><span>面试模式</span><b id="pj-mode">视频面试</b></div>
-      </div>
-      <p class="pj-hint" id="pj-hint">💡 建议佩戴耳机、保持环境安静、正对摄像头；AI 面试官会实时分析你的仪态与表达。</p>
-      <div id="pj-voice-result" class="pj-voice-result hidden"></div>
-      <button id="pj-join" class="btn primary lg full" onclick="joinMeeting()">加入会议</button>
-      <button class="btn ghost full" style="margin-top:8px" onclick="leavePrejoin()">返回岗位选择</button>
-    </aside>
   </section>
 
   <!-- ② 会议中 -->
@@ -170,6 +179,8 @@
           <div class="ai-wave"><i></i><i></i><i></i><i></i><i></i></div>
           <div class="tile-tag" id="ai-badge">正在提问</div>
           <div class="caption hidden" id="ai-caption"></div>
+          <div id="listen-pill" class="listen-pill hidden">🎙 请回答，我在听</div>
+          <button id="btn-skip-think" class="skip-think hidden" onclick="skipThink()">跳过思考，直接作答 →</button>
         </div>
         <!-- 我的画面 -->
         <div class="tile tile-me" id="tile-me">
@@ -193,6 +204,7 @@
         </div>
 
         <div id="mtab-chat" class="side-body">
+          <div id="q-brief" class="q-brief hidden"></div>
           <div id="chat-log" class="chat-log"></div>
           <div class="chat-input">
             <!-- 纯语音作答：实时字幕，说完自动提交（无打字、无发送按钮） -->

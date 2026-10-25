@@ -34,6 +34,7 @@ const state = {
 function go(view) {
   for (const v of ['home', 'interview', 'report', 'history', 'kb', 'admin']) $('view-' + v).classList.add('hidden');
   $('view-' + view).classList.remove('hidden');
+  document.querySelectorAll('.topnav a').forEach(a => a.classList.toggle('active', a.dataset.nav === view));
   if (view === 'history') renderHistory();
   if (view === 'kb') renderKB();
   if (view === 'home' && state.user) $('login-card').classList.add('hidden');
@@ -137,7 +138,8 @@ async function refreshMicDevices(verbose = false) {
 
   const cur = micDevices.find(d => d.deviceId === micDeviceId) || micDevices[0];
   const hint = micDeviceId && cur ? `当前使用：${cur.label || '已选设备'}` : '当前使用：系统默认设备';
-  if ($('pj-mic-devhint')) $('pj-mic-devhint').textContent = micDevices.length ? hint : '未检测到麦克风，请插入设备后点 🔄 重扫';
+  if (micDevices.length && hint) setCk('mic', micStream ? 'ok' : 'pending', (micStream ? '✓ ' : '') + hint);
+  else setCk('mic', 'fail', '✕ 未检测到麦克风，插入设备后点 🔄 重扫');
   if (verbose) toast(micDevices.length ? `已重新扫描，共 ${micDevices.length} 个麦克风` : '未检测到麦克风设备');
 }
 
@@ -153,9 +155,9 @@ async function selectMicDevice(id) {
 
   stopMicMeter();
   const ok = await startMicMeter();
-  if (ok && $('pj-mic-devhint')) {
+  if (ok) {
     const cur = micDevices.find(d => d.deviceId === micDeviceId);
-    $('pj-mic-devhint').textContent = `已切换到：${cur ? (cur.label || '已选设备') : '系统默认设备'} · 说话试试音量条`;
+    setCk('mic', 'ok', '✓ 已切换到：' + (cur ? (cur.label || '已选设备') : '系统默认设备'));
   }
   if (!ok) {
     toast('该麦克风无法使用（可能被其他程序占用），已回退到系统默认设备');
@@ -236,15 +238,29 @@ function leavePrejoin() {
   go('home');
 }
 
-/* ===== 会前设备检测 ===== */
+/* ===== 会前设备检测（牛客式检测清单） ===== */
+/** 检测清单行状态：pending 待检 / ok 通过 / fail 异常 */
+function setCk(id, state, text) {
+  const row = $('ck-' + id), st = $('ck-' + id + '-st');
+  if (!row) return;
+  row.classList.remove('ok', 'fail');
+  if (state === 'ok') { row.classList.add('ok'); st.textContent = text || '✓ 已通过'; }
+  else if (state === 'fail') { row.classList.add('fail'); st.textContent = text || '✕ 异常'; }
+  else st.textContent = text || '—';
+}
+
 async function prejoinPrepare(mode) {
   const textMode = mode === 'text';
+  const pjLeft = document.querySelector('.pj-modal .pj-left');
   $('pj-cam-btn').classList.toggle('hidden', textMode);
   $('pj-mic-btn').classList.toggle('hidden', textMode);
-  document.querySelector('.pj-devpick').classList.toggle('hidden', textMode);
-  $('pj-video-off').classList.toggle('show', textMode);
+  pjLeft.classList.toggle('hidden', textMode);
+  setCk('net', 'ok', '✓ 本机服务正常');
   if (textMode) {
-    $('pj-hint').textContent = '⌨ 文字面试模式：无需麦克风与摄像头，直接加入会议即可开始作答。';
+    setCk('cam', 'ok', '— 文字模式无需摄像头');
+    setCk('mic', 'ok', '— 文字模式无需麦克风');
+    setCk('spk', 'ok', '— 文字模式无需扬声器');
+    $('pj-hint').textContent = '⌨ 文字面试模式：无需麦克风与摄像头，直接进入面试间即可开始作答。';
     return;
   }
   refreshMicDevices();   // 先给出已知设备，授权成功后会带上真实设备名再刷一次
@@ -255,10 +271,13 @@ async function prejoinPrepare(mode) {
   }
   await startMicMeter();
   if (mode === 'video') await prejoinCameraOn();
+  else setCk('cam', 'ok', '— 文字模式无需摄像头');
+  refreshCamDevices();
 }
 
 async function startMicMeter() {
   if (micStream) return true;
+  setCk('mic', 'pending', '检测中…');
   try {
     micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints() });
   } catch (e) {
@@ -274,6 +293,7 @@ async function startMicMeter() {
   }
   // 权限已授予：此时设备名（label）才可读，刷新下拉框
   refreshMicDevices();
+  setCk('mic', 'ok', '✓ 正常，说话时下方音量条会动');
   try {
     micCtx = new (window.AudioContext || window.webkitAudioContext)();
     const src = micCtx.createMediaStreamSource(micStream);
@@ -303,8 +323,8 @@ function micFailUI(e) {
   const why = e && e.name === 'NotAllowedError'
     ? '麦克风权限被拒绝：请点浏览器地址栏左侧图标允许麦克风后刷新页面'
     : '麦克风无法打开（可能被其他会议软件占用：' + (e && e.name ? e.name : '未知') + '），可换一个设备或关闭占用程序';
-  $('pj-hint').textContent = '⚠️ ' + why + '。本次仍可继续用文字作答。';
-  if ($('pj-mic-devhint')) $('pj-mic-devhint').textContent = '⚠️ ' + why;
+  $('pj-hint').textContent = '⚠️ ' + why;
+  setCk('mic', 'fail', '✕ ' + (e && e.name === 'NotAllowedError' ? '权限被拒绝' : '无法打开'));
   return false;
 }
 
@@ -315,13 +335,58 @@ function stopMicMeter() {
   if (micCtx) { try { micCtx.close(); } catch {} micCtx = null; }
 }
 
+/* ---- 摄像头设备选择（与麦克风同款体验） ---- */
+const CAM_KEY = 'mm.cam.deviceId';
+let camDeviceId = localStorage.getItem(CAM_KEY) || '';
+let camDevices = [];
+
+async function refreshCamDevices(verbose = false) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  try {
+    const all = await navigator.mediaDevices.enumerateDevices();
+    camDevices = all.filter(d => d.kind === 'videoinput');
+  } catch { camDevices = []; }
+  if (camDeviceId && camDevices.length && !camDevices.some(d => d.deviceId === camDeviceId)) {
+    camDeviceId = '';
+    localStorage.removeItem(CAM_KEY);
+  }
+  const el = $('pj-cam-select');
+  if (el) {
+    el.innerHTML = camDevices.length
+      ? camDevices.map((d, i) => `<option value="${d.deviceId}">${(d.label || `摄像头 ${i + 1}`).replace(/</g, '&lt;')}</option>`).join('')
+      : '<option value="">未检测到摄像头</option>';
+    el.value = camDeviceId || (camDevices[0] ? camDevices[0].deviceId : '');
+    el.disabled = !camDevices.length;
+  }
+  if (verbose) toast(camDevices.length ? `已重新扫描，共 ${camDevices.length} 个摄像头` : '未检测到摄像头设备');
+}
+
+async function selectCamDevice(id) {
+  camDeviceId = id || '';
+  if (camDeviceId) localStorage.setItem(CAM_KEY, camDeviceId); else localStorage.removeItem(CAM_KEY);
+  await refreshCamDevices();
+  if (pjStream) { prejoinCameraOff(); await prejoinCameraOn(); }
+}
+
 async function prejoinCameraOn() {
   if (pjStream) return true;
+  setCk('cam', 'pending', '检测中…');
   try {
-    pjStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
+    const vc = { width: 1280, height: 720 };
+    if (camDeviceId) vc.deviceId = { exact: camDeviceId };
+    try {
+      pjStream = await navigator.mediaDevices.getUserMedia({ video: vc, audio: false });
+    } catch (e) {
+      if (camDeviceId && (e.name === 'OverconstrainedError' || e.name === 'NotFoundError')) {
+        camDeviceId = ''; localStorage.removeItem(CAM_KEY);
+        pjStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
+      } else throw e;
+    }
     $('pj-video').srcObject = pjStream;
     $('pj-video-off').classList.remove('show');
     $('pj-cam-btn').classList.add('on'); $('pj-cam-btn').classList.remove('off');
+    setCk('cam', 'ok', '✓ 正常');
+    refreshCamDevices();
     return true;
   } catch (e) {
     $('pj-video-off').classList.add('show');
@@ -338,6 +403,7 @@ function prejoinCameraOff() {
   $('pj-video').srcObject = null;
   $('pj-video-off').classList.add('show');
   $('pj-cam-btn').classList.remove('on'); $('pj-cam-btn').classList.add('off');
+  setCk('cam', 'pending', '已关闭 · 点击开启');
 }
 
 async function prejoinToggleCam() {
@@ -349,6 +415,7 @@ function prejoinToggleMic() {
   $('pj-mic-btn').classList.toggle('on', micOn);
   $('pj-mic-btn').classList.toggle('off', !micOn);
   if (micStream) micStream.getAudioTracks().forEach(t => t.enabled = micOn);
+  setCk('mic', micOn ? 'ok' : 'fail', micOn ? '✓ 已开启' : '✕ 已静音');
   toast(micOn ? '麦克风已开启' : '麦克风已静音');
 }
 
@@ -358,8 +425,9 @@ function prejoinTestSpeaker() {
     const u = new SpeechSynthesisUtterance('你好，这里是面镜模拟面试的扬声器测试，听到声音说明设备正常。');
     u.lang = 'zh-CN'; u.rate = 1.05;
     speechSynthesis.speak(u);
+    setCk('spk', 'ok', '✓ 正在播放测试语音，听到了吗');
     toast('🔊 正在播放测试语音…');
-  } catch (e) { toast('扬声器测试失败：' + e.message); }
+  } catch (e) { setCk('spk', 'fail', '✕ 播放失败'); toast('扬声器测试失败：' + e.message); }
 }
 
 /* ---------------- 语音识别自检（会前） ----------------
@@ -572,6 +640,25 @@ function updateProgress(done, total) { $('iv-progress').textContent = `进度 ${
 function setCurrentQ(text) {
   const el = $('current-q');
   if (el) el.textContent = text ? `📌 ${text}` : '';
+  renderQBrief(state.session && state.session.currentQ);
+}
+
+/** 本题押题卡：考察点 + 回答思路（牛客押题风，题目切换即更新） */
+function renderQBrief(q) {
+  const box = $('q-brief');
+  if (!box) return;
+  if (!q || (!q.points || !q.points.length) && !q.hint) {
+    box.classList.add('hidden');
+    return;
+  }
+  box.classList.remove('hidden');
+  const typeMap = { tech: '技术题', project: '项目题', scenario: '场景题', behavior: '行为题' };
+  box.innerHTML =
+    `<div class="qb-head"><b>📋 本题押题卡</b><span class="tag">${typeMap[q.type] || q.type || ''}</span></div>` +
+    (q.points && q.points.length
+      ? `<div class="qb-sec"><label>考察点</label><div class="qb-points">${q.points.map(p => `<i>${esc(p)}</i>`).join('')}</div></div>` : '') +
+    (q.hint ? `<div class="qb-sec"><label>回答思路</label><p>${esc(q.hint)}</p></div>` : '') +
+    `<p class="qb-tip">💡 思考时可参考，作答请用自己的话；卡片会在你作答时自动收起。</p>`;
 }
 
 function addMsg(kind, text, speak = false) {
@@ -662,6 +749,7 @@ async function submitAnswer(fromVoice) {
   input.value = '';
   listenState = null;
   renderVoice('');
+  if ($('q-brief')) $('q-brief').classList.add('hidden');   // 作答即收起押题卡
   setVoiceState('thinking', '⏳ 已自动提交，面试官正在思考…');
   $('mic-status').textContent = '说完就自动发出去了，无需点任何按钮';
   $('answer-input').disabled = true;
@@ -747,12 +835,20 @@ function micBtnUI(rec) {
 let autoSubmitTimer = null;
 let submitLock = false;
 
-/** 状态：idle 待机 / live 正在听 / thinking 面试官思考 / done 已提交 */
+/** 状态：idle 待机 / live 正在听 / thinking 面试官思考 / done 已提交（同步到舞台状态条） */
 function setVoiceState(kind, text) {
   const el = $('voice-state');
-  if (!el) return;
-  el.className = 'voice-state ' + kind;
-  el.textContent = text;
+  if (el) {
+    el.className = 'voice-state ' + kind;
+    el.textContent = text;
+  }
+  // 舞台底部状态条（牛客面试间同款"请回答，我在听"）
+  const pill = $('listen-pill');
+  if (pill) {
+    const live = kind === 'live' && !aiSpeakingNow;
+    pill.classList.toggle('hidden', !live);
+    if (live) pill.textContent = '🎙 ' + (text || '请回答，我在听').replace(/^🔴\s*/, '');
+  }
 }
 
 /** 渲染实时字幕：已确认文字 + 灰色临时文字 */
@@ -1094,6 +1190,7 @@ let thinkTimer = null;
 function startThinkCountdown(sec = 15) {
   skipThink();
   state.thinkUntil = Date.now() + sec * 1000;
+  if ($('btn-skip-think')) $('btn-skip-think').classList.remove('hidden');
   const tick = () => {
     const left = Math.ceil((state.thinkUntil - Date.now()) / 1000);
     if (left <= 0 || !state.thinkUntil) {
@@ -1109,6 +1206,7 @@ function startThinkCountdown(sec = 15) {
 function skipThink() {
   clearInterval(thinkTimer); thinkTimer = null;
   state.thinkUntil = null;
+  if ($('btn-skip-think')) $('btn-skip-think').classList.add('hidden');
   $('bar-status').textContent = state.reverseMode ? '反问环节' : '面试进行中';
 }
 

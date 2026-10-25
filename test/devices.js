@@ -43,7 +43,7 @@ const { chromium } = require('playwright');
   await page.waitForTimeout(1200);
   const persisted = await page.evaluate(() => localStorage.getItem('mm.mic.deviceId'));
   ok(persisted === deviceId, '选择结果已持久化到 localStorage');
-  const hint = await page.textContent('#pj-mic-devhint');
+  const hint = await page.textContent('#ck-mic-st');
   console.log('   设备提示:', hint);
   ok(/已切换|当前使用/.test(hint), '设备提示文案正确');
   const meterAfter = await page.$eval('#pj-meter-fill', el => el.style.width);
@@ -51,7 +51,7 @@ const { chromium } = require('playwright');
   await page.screenshot({ path: 'test/shots/dev-01-prejoin.png' });
 
   // 4. 刷新重扫描按钮
-  await page.click('.pj-devpick .dev-refresh');
+  await page.click('.pj-devrow .dev-refresh');
   await page.waitForTimeout(400);
   ok(await page.isVisible('#pj-mic-select'), '重扫按钮未破坏下拉框');
 
