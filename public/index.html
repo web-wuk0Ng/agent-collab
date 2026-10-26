@@ -30,60 +30,84 @@
   </div>
 </header>
 
-<!-- ============ 首页 ============ -->
-<main id="view-home" class="view">
-  <section class="hero">
-    <h1>把每一次面试，都变成一次提升</h1>
-    <p>AI 面试官 · 多模态对话 · 多维度评估 · 个性化提升路径</p>
+<!-- ============ 首页（牛客式工作台：左侧图标栏 / 中间准备区 / 右侧押题面板） ============ -->
+<main id="view-home" class="view view-workspace">
+  <!-- 左：功能图标栏 -->
+  <aside class="ws-rail">
+    <div class="rail-item active" onclick="go('home')"><i>💬</i><span>当天会话</span></div>
+    <div class="rail-item" onclick="startInterview()"><i>🆕</i><span>新建会话</span></div>
+    <div class="rail-item" onclick="go('history')"><i>📈</i><span>成长记录</span></div>
+    <div class="rail-item" onclick="go('kb')"><i>📖</i><span>知识库</span></div>
+    <div class="rail-item" onclick="goAdmin()"><i>🏫</i><span>管理中心</span></div>
+  </aside>
+
+  <!-- 中：准备区 -->
+  <section class="ws-main">
+    <section class="hero">
+      <h1>把每一次面试，都变成一次提升</h1>
+      <p>AI 面试官 · 多模态对话 · 多维度评估 · 个性化提升路径</p>
+    </section>
+
+    <section id="login-card" class="card center-card">
+      <h2>输入你的姓名开始练习</h2>
+      <p class="muted">系统将记录你的历次面试与能力成长曲线</p>
+      <div class="row">
+        <input id="login-name" placeholder="例如：王涛" maxlength="20" onkeydown="if(event.key==='Enter')login()">
+        <button class="btn primary" onclick="login()">进入</button>
+      </div>
+    </section>
+
+    <section id="setup-card" class="card hidden">
+      <h2>选择目标岗位</h2>
+      <div id="ai-warn-bar" class="ai-warn hidden">
+        ⚠️ <b>AI 面试官尚未配置</b> —— 正式使用 AI 模拟面试前，需要先在「AI 设置」中接入大模型（填入 API Key 并测试通过）。<button class="btn sm primary" onclick="openAISettings(true)">立即配置 →</button>
+      </div>
+      <div id="position-list" class="pos-grid"></div>
+      <div class="row setup-opts">
+        <label>面试轮次
+          <select id="opt-rounds">
+            <option value="4">精简（4 题）</option>
+            <option value="6" selected>标准（6 题）</option>
+            <option value="9">完整（9 题）</option>
+          </select>
+        </label>
+        <label>输入方式
+          <select id="opt-mode">
+            <option value="video" selected>🎥 视频面试（摄像头 + 语音 + 文字）</option>
+            <option value="voice">🎙 语音 + 文字</option>
+            <option value="text">⌨ 仅文字</option>
+          </select>
+        </label>
+      </div>
+      <details class="jd-box">
+        <summary>🏢 企业定制：粘贴岗位 JD，AI 生成定制面试题（可选，需接入大模型）</summary>
+        <textarea id="opt-jd" rows="4" placeholder="粘贴招聘描述（JD），例如：岗位职责：1. 负责公司电商微服务后端开发，要求熟悉 Java、Spring Cloud、MySQL、Redis、Kafka，有高并发经验优先……"></textarea>
+        <p class="muted small" style="margin-top:4px">留空则使用该岗位的标准题库；填写后由大模型针对 JD 生成专属面试题（离线演示模式下自动回退标准题库）</p>
+      </details>
+      <div class="row setup-opts">
+        <button id="btn-start" class="btn primary lg" onclick="startInterview()">开始模拟面试 →</button>
+      </div>
+    </section>
+
+    <section class="feature-strip">
+      <div class="feat"><span>🧑‍💼</span><b>岗位化题库</b><small>后端 / 前端 / 算法，技术·项目·场景·行为四类题型</small></div>
+      <div class="feat"><span>🎙</span><b>多模态面试</b><small>语音作答、实时字幕、说完自动提交</small></div>
+      <div class="feat"><span>📊</span><b>多维评估</b><small>技术正确性·知识深度·逻辑·匹配度·表达五维报告</small></div>
+      <div class="feat"><span>📈</span><b>能力提升闭环</b><small>练习 → 评估 → 提升建议 → 成长曲线追踪</small></div>
+    </section>
   </section>
 
-  <section id="login-card" class="card center-card">
-    <h2>输入你的姓名开始练习</h2>
-    <p class="muted">系统将记录你的历次面试与能力成长曲线</p>
-    <div class="row">
-      <input id="login-name" placeholder="例如：王涛" maxlength="20" onkeydown="if(event.key==='Enter')login()">
-      <button class="btn primary" onclick="login()">进入</button>
+  <!-- 右：押题面板（牛客同款） -->
+  <aside class="ws-side">
+    <div class="ws-side-card">
+      <div id="bank-preview" class="bp"><p class="bp-empty">登录后选择岗位，这里会显示该岗位的押题清单</p></div>
     </div>
-  </section>
-
-  <section id="setup-card" class="card hidden">
-    <h2>选择目标岗位</h2>
-    <div id="ai-warn-bar" class="ai-warn hidden">
-      ⚠️ <b>AI 面试官尚未配置</b> —— 正式使用 AI 模拟面试前，需要先在「AI 设置」中接入大模型（填入 API Key 并测试通过）。<button class="btn sm primary" onclick="openAISettings(true)">立即配置 →</button>
+    <div class="ws-cta">
+      <b>模拟真实面试场景</b>
+      <p>AI 面试官实时提问、追问，说完自动提交</p>
+      <button class="btn primary full" onclick="startInterview()">开始模拟面试</button>
     </div>
-    <div id="position-list" class="pos-grid"></div>
-    <div class="row setup-opts">
-      <label>面试轮次
-        <select id="opt-rounds">
-          <option value="4">精简（4 题）</option>
-          <option value="6" selected>标准（6 题）</option>
-          <option value="9">完整（9 题）</option>
-        </select>
-      </label>
-      <label>输入方式
-        <select id="opt-mode">
-          <option value="video" selected>🎥 视频面试（摄像头 + 语音 + 文字）</option>
-          <option value="voice">🎙 语音 + 文字</option>
-          <option value="text">⌨ 仅文字</option>
-        </select>
-      </label>
-    </div>
-    <details class="jd-box">
-      <summary>🏢 企业定制：粘贴岗位 JD，AI 生成定制面试题（可选，需接入大模型）</summary>
-      <textarea id="opt-jd" rows="4" placeholder="粘贴招聘描述（JD），例如：岗位职责：1. 负责公司电商微服务后端开发，要求熟悉 Java、Spring Cloud、MySQL、Redis、Kafka，有高并发经验优先……"></textarea>
-      <p class="muted small" style="margin-top:4px">留空则使用该岗位的标准题库；填写后由大模型针对 JD 生成专属面试题（离线演示模式下自动回退标准题库）</p>
-    </details>
-    <div class="row setup-opts">
-      <button id="btn-start" class="btn primary lg" onclick="startInterview()">开始模拟面试 →</button>
-    </div>
-  </section>
-
-  <section class="feature-strip">
-    <div class="feat"><span>🧑‍💼</span><b>岗位化题库</b><small>后端 / 前端 / 算法，技术·项目·场景·行为四类题型</small></div>
-    <div class="feat"><span>🎙</span><b>多模态面试</b><small>语音 + 文字与 AI 面试官多轮对话，智能动态追问</small></div>
-    <div class="feat"><span>📊</span><b>多维评估</b><small>技术正确性·知识深度·逻辑·匹配度·表达五维报告</small></div>
-    <div class="feat"><span>📈</span><b>能力提升闭环</b><small>练习 → 评估 → 提升建议 → 成长曲线追踪</small></div>
-  </section>
+  </aside>
 </main>
 
 <!-- ============ 面试房间（腾讯会议风格 · 会前检测 → 视频会议） ============ -->
@@ -291,9 +315,24 @@
         </select>
       </div>
       <div class="dev-row">
+        <label for="mtg-voice-select">面试官音色</label>
+        <select id="mtg-voice-select" onchange="setTtsVoice(this.value)">
+          <option value="auto">自动（优先自然音色）</option>
+          <option value="female">温柔女声</option>
+          <option value="male">稳重男声</option>
+        </select>
+        <button class="dev-refresh" onclick="tryVoice()" title="试听一句">🔊</button>
+      </div>
+      <div class="dev-row">
+        <label for="mtg-rate">语速</label>
+        <input id="mtg-rate" type="range" min="0.8" max="1.25" step="0.05" value="1" oninput="setTtsRate(this.value)">
+        <span id="mtg-rate-val" class="dev-val">1.00×</span>
+      </div>
+      <div class="dev-row">
         <span class="dev-label">输入音量</span>
         <div class="meter"><i id="dev-panel-meter"></i></div>
       </div>
+      <p id="voice-hint" class="dev-hint">音色列表读取中…</p>
       <p id="mtg-mic-hint" class="dev-hint">对着麦克风说话，音量条跳动即表示设备正常。切换设备后无需重开会议。</p>
     </div>
   </section>

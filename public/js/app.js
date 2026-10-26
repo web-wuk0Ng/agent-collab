@@ -80,9 +80,49 @@ async function loadPositions() {
   pickPos(positions[0].id);
 }
 
+/* ---- 语音识别结果润色：离线引擎不带标点，这里按语义补上，让回答通顺可读 ---- */
+const PUNCT_END = '。！？，、；：';
+/** 句末判定：以"了/的/呢/吧/啊/吗/吧/啦/哦"等收尾或含疑问词，视为一句结束 */
+function isSentenceEnd(text) {
+  const t = (text || '').trim();
+  if (!t) return false;
+  if (/[吗呢吧啊啦嘛呀哦了]$/.test(t)) return true;
+  if (/^(什么|为什么|怎么|如何|哪里|谁)/.test(t) || /(吗|呢|吧)$/.test(t)) return true;
+  return false;
+}
+/** 给一段识别文本补上合适的标点（不重复补） */
+function punctuate(text, { final = false } = {}) {
+  let t = (text || '').trim();
+  if (!t) return '';
+  if (PUNCT_END.includes(t[t.length - 1])) return t;
+  // 说话时的"嗯/啊/然后"等口头禅保留（报告要统计），只补标点
+  return final ? (isSentenceEnd(t) || t.length >= 12 ? t + '。' : t + '，') : t + '，';
+}
+
 function pickPos(id) {
   state.posId = id;
   document.querySelectorAll('.pos-card').forEach(el => el.classList.toggle('sel', el.dataset.id === id));
+  loadBankPreview(id);   // 右侧押题面板随岗位切换
+}
+
+/* ---- 牛客式首页：右侧「面试押题」预览面板 ---- */
+async function loadBankPreview(posId) {
+  const box = $('bank-preview');
+  if (!box) return;
+  try {
+    const r = await API('/api/bank/preview?position=' + encodeURIComponent(posId));
+    const typeMap = { tech: '技能题', project: '项目题', scenario: '场景题', behavior: '行为题' };
+    box.innerHTML =
+      `<div class="bp-head"><b>面试押题</b><span class="bp-count">共 ${r.total} 题</span></div>` +
+      r.questions.map((q, i) => `
+        <div class="bp-item">
+          <div class="bp-q"><i>${i + 1}</i><span>${esc(q.text)}</span></div>
+          <div class="bp-meta"><span class="tag ${q.type}">${typeMap[q.type] || '技能题'}</span></div>
+          ${q.hint ? `<div class="bp-hint">回答思路：${esc(q.hint)}</div>` : ''}
+        </div>`).join('');
+  } catch {
+    box.innerHTML = '<div class="bp-head"><b>面试押题</b></div><p class="bp-empty">题库加载中…</p>';
+  }
 }
 
 /* ---------------- 面试流程：会前设备检测 → 视频会议 ---------------- */
@@ -176,7 +216,24 @@ function toggleDevPanel() {
   const show = p.classList.contains('hidden');
   p.classList.toggle('hidden', !show);
   $('ctrl-dev').classList.toggle('active', show);
-  if (show) { refreshMicDevices(); if ($('mtg-asr-select')) $('mtg-asr-select').value = asrPrefer; }
+  if (show) {
+    refreshMicDevices();
+    if ($('mtg-asr-select')) $('mtg-asr-select').value = asrPrefer;
+    if ($('mtg-voice-select')) $('mtg-voice-select').value = ttsVoicePref;
+    if ($('mtg-rate')) $('mtg-rate').value = String(ttsRate);
+    if ($('mtg-rate-val')) $('mtg-rate-val').textContent = ttsRate.toFixed(2) + '×';
+    // 音色自然度提示：没有神经网络音时给出升级路径
+    loadVoices();
+    const v = pickVoice();
+    const hint = $('voice-hint');
+    if (hint) {
+      hint.textContent = v
+        ? (/natural|online|neural/i.test(v.name)
+          ? '当前音色：' + v.name.replace(/\s*-\s*Chinese.*$/, '') + '（神经网络自然音，接近真人）'
+          : '当前音色：' + v.name.replace(/\s*-\s*Chinese.*$/, '') + '（系统传统音色，机械感略强）。想要更像真人：Windows 设置 → 时间和语言 → 语音 → 添加中文（中国）自然语音，或改用 Edge 联网后使用 Xiaoxiao/Yunxi 在线音色。')
+        : '未检测到中文语音包，请先在系统中安装中文语音。';
+    }
+  }
 }
 
 const newMeetingId = () => 'MM-' + Math.random().toString(36).slice(2, 5).toUpperCase() + '-' + Math.random().toString(36).slice(2, 5).toUpperCase();
@@ -422,8 +479,11 @@ function prejoinToggleMic() {
 function prejoinTestSpeaker() {
   try {
     speechSynthesis.cancel();
+    loadVoices();
     const u = new SpeechSynthesisUtterance('你好，这里是面镜模拟面试的扬声器测试，听到声音说明设备正常。');
-    u.lang = 'zh-CN'; u.rate = 1.05;
+    u.lang = 'zh-CN'; u.rate = ttsRate || 1;
+    const v = pickVoice();
+    if (v) u.voice = v;
     speechSynthesis.speak(u);
     setCk('spk', 'ok', '✓ 正在播放测试语音，听到了吗');
     toast('🔊 正在播放测试语音…');
@@ -611,6 +671,7 @@ function setAiSpeaking(text) {
   tile.classList.add('speaking');
   setAvatarTalking(true);
   $('ai-badge').textContent = '正在提问';
+  if ($('listen-pill')) $('listen-pill').classList.add('hidden');   // 面试官说话时收起收音状态条
   const cap = $('ai-caption');
   if (cap && text) {
     cap.textContent = text.replace(/\s+/g, ' ').trim().slice(0, 140);
@@ -766,6 +827,7 @@ async function submitAnswer(fromVoice) {
     state.nudgeCount = 0;   // 进入下一环节，面试官引导次数清零
     if (r.followUp) {
       // 面试官追问，题目不变
+      $('ai-badge').textContent = '⚡ 追问';
       addMsg('ai', r.nextLine, true);
       addMsg('sys', '⚡ AI 面试官针对你的回答进行了追问，请继续作答');
     } else if (r.done) {
@@ -862,6 +924,18 @@ function renderVoice(interim = '') {
   box.classList.toggle('empty', empty);
   if (ph) ph.style.display = empty ? '' : 'none';
   box.scrollTop = box.scrollHeight;
+  // 舞台字幕（牛客同款）：正在收音时把你说的话实时投到大画面上
+  const pill = $('listen-pill');
+  if (pill) {
+    const live = !!(listenState && !listenState.stopped);
+    pill.classList.toggle('hidden', !live);
+    if (live) {
+      const tail = (buf + ' ' + interim).trim().slice(-46);
+      pill.textContent = '🎙 ' + (tail || '请回答，我在听');
+      const cap = $('ai-caption');
+      if (cap) cap.classList.add('hidden');   // 轮到你说了，收起面试官的字幕，避免两条字幕叠在一起
+    }
+  }
 }
 
 /** 说完自动提交（延迟极短，无需任何点击） */
@@ -1013,7 +1087,9 @@ function startListening({ auto = false } = {}) {
       clearTimeout(listenState.noResultTimer);
     }
     if (final && final !== listenState.lastFinal) {   // 去重：同一段落文本只追加一次
-      input.value += final;
+      // 离线引擎不带标点 → 按语义补上，答案读起来才通顺（报告里也更好看）
+      const pretty = punctuate(final, { final: true });
+      input.value += pretty;
       listenState.lastFinal = final;
       listenState.baseLen = input.value.length;
     }
@@ -1043,6 +1119,7 @@ function startListening({ auto = false } = {}) {
   }
 
   r.onerror = e => {
+    if (!listenState) return;   // 已结束/已提交的引擎异步报错直接忽略，避免空指针
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
       listenState.stopped = true;
       setVoiceState('idle', '❌ 麦克风没权限');
@@ -1275,15 +1352,93 @@ async function toggleCamera() {
   await enableCamera();
 }
 
-/* ---------------- TTS 语音播报 ----------------
- * 注意：Chrome 的 speechSynthesis 存在 onend 不触发的已知 bug（长文本/语音列表异步加载/
- * cancel 后假死），一旦 onend 丢失 → aiSpeakingNow 永远为 true → 自动开麦永远不执行 →
- * 候选人怎么说话都识别不到。所以必须加看门狗：按文本长度估算时长，超时强制收尾。
+/* ---------------- TTS 语音播报（自然拟人化） ----------------
+ * 目标：像豆包/真人面试官，而不是系统朗读机器。
+ * 做法：① 优先挑"神经网络自然音色"（Xiaoxiao 女声 / Yunxi 男声 等），
+ *      ② 按标点断句逐句播报，句间自然停顿；
+ *      ③ 语速放慢到 0.95~1.0 并做轻微起伏，避免平直机械感；
+ *      ④ 保留看门狗：Chrome 的 onend 丢失会导致 aiSpeakingNow 卡死 → 永不自动开麦。
  */
 let ttsWatchdog = null, ttsResumeTimer = null;
+let ttsVoicePref = localStorage.getItem('mm.tts.voice') || 'auto';   // auto | female | male
+let ttsRate = parseFloat(localStorage.getItem('mm.tts.rate') || '1') || 1;
+let ttsVoices = [];
+
+/** 浏览器语音列表异步加载，取一次并缓存 */
+function loadVoices() {
+  if (!window.speechSynthesis) return;
+  const vs = speechSynthesis.getVoices() || [];
+  if (vs.length) ttsVoices = vs;
+}
+
+/** 按自然度排序挑音色：优先"Online/Natural"神经网络音，其次常见自然音名 */
+function pickVoice() {
+  const zh = ttsVoices.filter(v => /^zh/i.test(v.lang) || /Chinese|中文|普通话/i.test(v.name));
+  if (!zh.length) return null;
+  const preferFemale = ['Xiaoxiao', '晓晓', 'Xiaoyi', '晓伊', 'Yaoyao', 'Huihui', 'Tingting', 'Google 普通话'];
+  const preferMale = ['Yunxi', '云希', 'Yunyang', '云扬', 'Yunye', '云野', 'Kangkang', '康康', 'Liang'];
+  const wants = ttsVoicePref === 'male' ? preferMale : ttsVoicePref === 'female' ? preferFemale : [...preferFemale, ...preferMale];
+  for (const name of wants) {
+    const hit = zh.find(v => v.name.includes(name));
+    if (hit) return hit;
+  }
+  // 兜底：优先带 Natural / Online 标记的音色，再退回第一个中文音
+  const neural = zh.find(v => /natural|online|neural/i.test(v.name));
+  return neural || zh[0];
+}
+
+function setTtsVoice(pref) {
+  ttsVoicePref = pref;
+  localStorage.setItem('mm.tts.voice', pref);
+  const sel = $('mtg-voice-select');
+  if (sel) sel.value = pref;
+  toast('面试官音色已切换，下一句话生效');
+}
+function setTtsRate(v) {
+  ttsRate = Math.min(1.3, Math.max(0.7, parseFloat(v) || 1));
+  localStorage.setItem('mm.tts.rate', String(ttsRate));
+  const lbl = $('mtg-rate-val');
+  if (lbl) lbl.textContent = ttsRate.toFixed(2) + '×';
+}
+
+/** 试听一句（设备面板 🔊）：用当前音色和语速念一句面试官的话 */
+function tryVoice() {
+  loadVoices();
+  const v = pickVoice();
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance('你好，我是今天的面试官。请介绍一下你自己，说说你和这个岗位相关的经历。');
+    u.lang = 'zh-CN';
+    if (v) u.voice = v;
+    u.rate = ttsRate; u.pitch = 1;
+    speechSynthesis.speak(u);
+    toast('试听中：' + (v ? v.name.replace(/\s*-\s*Chinese.*$/, '') : '系统默认音色'));
+  } catch (e) { toast('试听失败：' + e.message); }
+}
+
+/** 把长句按标点切成"一口气"的小段，句间自然停顿（机械感主要来自一口气念完） */
+function splitSentences(text) {
+  const raw = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (!raw) return [];
+  const parts = raw.split(/(?<=[。！？；!?;])/).filter(s => s.trim());
+  const out = [];
+  for (const p of parts) {
+    if (p.length <= 42) { out.push(p); continue; }
+    // 长句再按逗号拆
+    let buf = '';
+    for (const seg of p.split(/(?<=[，,、])/)) {
+      if ((buf + seg).length > 42 && buf) { out.push(buf); buf = seg; }
+      else buf += seg;
+    }
+    if (buf) out.push(buf);
+  }
+  return out;
+}
 
 function speakText(text) {
-  const estMs = Math.min(25000, 1500 + text.replace(/\s+/g, ' ').slice(0, 300).length * 280);
+  const chunks = splitSentences(text);
+  const total = chunks.join('').length || 1;
+  const estMs = Math.min(30000, 1200 + total * 300);
   const forceDone = () => {   // 看门狗：onend 丢失时强制复位，保证候选人能开麦
     if (!aiSpeakingNow) return;
     try { speechSynthesis.cancel(); } catch {}
@@ -1291,24 +1446,37 @@ function speakText(text) {
   };
   try {
     speechSynthesis.cancel();
-    const clean = text.replace(/\s+/g, ' ').slice(0, 300);
-    const u = new SpeechSynthesisUtterance(clean);
-    u.lang = 'zh-CN';
-    u.rate = 1.12;
-    const vs = speechSynthesis.getVoices().filter(v => v.lang.startsWith('zh'));
-    if (vs.length) u.voice = vs[0];
+    loadVoices();
+    const voice = pickVoice();
+    const baseRate = ttsRate;
     aiSpeakingNow = true;
     startBargeInWatch();   // 播放期间允许候选人直接开口打断
     setAvatarTalking(true);
-    u.onend = finishSpeech;
-    u.onerror = finishSpeech;
-    speechSynthesis.speak(u);
+
+    let i = 0;
+    const speakNext = () => {
+      if (i >= chunks.length) { finishSpeech(); return; }
+      const seg = chunks[i++];
+      const u = new SpeechSynthesisUtterance(seg);
+      u.lang = 'zh-CN';
+      if (voice) u.voice = voice;
+      // 语速与音高做轻微随机起伏：真人说话不会每句完全一样
+      const jitter = (Math.random() - 0.5) * 0.08;
+      u.rate = Math.max(0.7, Math.min(1.3, baseRate + jitter));
+      u.pitch = 1 + (Math.random() - 0.5) * 0.12;
+      u.volume = 1;
+      u.onend = () => setTimeout(speakNext, 90);   // 句间 90ms 停顿，像真人换气
+      u.onerror = () => setTimeout(speakNext, 60);
+      speechSynthesis.speak(u);
+    };
+    speakNext();
+
     // Chrome 长文本假死缓解：周期性 resume
     clearInterval(ttsResumeTimer);
     ttsResumeTimer = setInterval(() => { try { speechSynthesis.resume(); } catch {} }, 4000);
     // 看门狗：超过估算时长 + 缓冲仍未结束 → 强制收尾
     clearTimeout(ttsWatchdog);
-    ttsWatchdog = setTimeout(forceDone, estMs + 4000);
+    ttsWatchdog = setTimeout(forceDone, estMs + 5000);
   } catch (e) {
     aiSpeakingNow = false;
     scheduleAutoListen(400);
@@ -1367,12 +1535,12 @@ async function finishInterview(auto = false) {
   const sess = state.session;
   try {
     const videoMetrics = (sess.mode === 'video' && camStream) ? VisionMonitor.summary() : null;
-    const { report } = await API('/api/interview/finish', { sessionId: sess.id, videoMetrics });
+    const { report, transcript } = await API('/api/interview/finish', { sessionId: sess.id, videoMetrics });
     state.lastReportSessionId = sess.id;
     state.session = null;
     pending = null;
     cleanupMeeting();
-    renderReport(report);
+    renderReport(report, null, transcript);
     go('report');
     if (!auto) toast('已离开会议，评估报告已生成');
   } catch (e) { toast(e.message); }
@@ -1390,7 +1558,7 @@ function ringSVG(score) {
   </svg><div class="val"><b class="${scoreClass(score)}">${score}</b><small>综合得分</small></div>`;
 }
 
-function renderReport(rep, sessionMeta) {
+function renderReport(rep, sessionMeta, transcript) {
   const dims = (rep.dimensions || []).map(d => `
     <div class="dim-bar">
       <div class="lbl"><span>${esc(d.name)}</span><b>${d.score}</b></div>
@@ -1425,6 +1593,20 @@ function renderReport(rep, sessionMeta) {
         ${perRound}
       </table></div>
     </section>
+
+    ${transcript && transcript.length ? `
+    <section class="card"><h2>🗒 面试全程回放（你说的原话 + 追问）</h2>
+      <div class="replay">${transcript.map(t => `
+        <div class="rp-item">
+          <div class="rp-q">面试官 ${t.index}：${esc(t.question)}</div>
+          <div class="rp-a"><b>你的回答</b><p>${esc(t.answer || '（未作答）')}</p></div>
+          ${(t.followUps || []).map(f => `
+            <div class="rp-f"><span>追问</span>${esc(f.q)}</div>
+            ${f.a ? `<div class="rp-a small"><b>补充回答</b><p>${esc(f.a)}</p></div>` : ''}`).join('')}
+          ${t.metrics ? `<div class="rp-m">语速 ${t.metrics.wpm || '-'} 字/分 · 时长 ${t.metrics.seconds || '-'}s · 口头禅 ${t.metrics.fillers || 0} 次 · 自信度 ${t.metrics.confidence || '-'}</div>` : ''}
+        </div>`).join('')}
+      </div>
+    </section>` : ''}
 
     <section class="card"><h2>💡 改进建议</h2><ul class="rep-list advice">${(rep.advice || []).map(s => `<li>${esc(s)}</li>`).join('')}</ul></section>
 
@@ -1773,5 +1955,9 @@ async function adminExport() {
       }
     });
   }
-  if (speechSynthesis) speechSynthesis.getVoices(); // 预热语音列表
+  // 预热语音列表（异步加载，尽早拿到自然音色）
+  if (window.speechSynthesis) {
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+  }
 })();

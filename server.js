@@ -106,6 +106,22 @@ const routes = {
   // 元信息：岗位列表与题库规模
   'GET /api/positions': () => ({ positions: bank.positionsMeta() }),
 
+  // 岗位押题预览（首页右侧面板）：只下发题干/类型/回答思路，不下发评分要点
+  'GET /api/bank/preview': (p, query) => {
+    const pos = String(query.position || '').trim();
+    const b = bank.getBank(pos);
+    if (!b) throw new Error('岗位不存在');
+    const order = { behavior: 0, tech: 1, project: 2, scenario: 3 };
+    const limit = Math.min(Math.max(parseInt(query.limit, 10) || 8, 1), 20);
+    const qs = [...b.questions].sort((x, y) => (order[x.type] ?? 9) - (order[y.type] ?? 9)).slice(0, limit);
+    return {
+      position: pos,
+      name: b.name,
+      total: b.questions.length,
+      questions: qs.map(q => ({ id: q.id, type: q.type, text: q.text, hint: q.hint || '' }))
+    };
+  },
+
   // 用户（本地轻量账户：仅用于隔离面试历史）
   'POST /api/login': (p) => {
     const name = String(p.name || '').trim().slice(0, 20);
@@ -223,7 +239,16 @@ const routes = {
     s.report = report;
     db.saveSession(s);
     db.addHistory(s);
-    return { report };
+    // 面试全程回放：题目 → 你的回答 → 追问与补充（用于复盘，报告页展示）
+    const transcript = (s.rounds || []).map((r, i) => ({
+      index: i + 1,
+      type: (r.question && r.question.type) || '',
+      question: (r.question && r.question.text) || '',
+      answer: r.answer || '',
+      followUps: (r.followUps || []).filter(f => f.q || f.a).map(f => ({ q: f.q || '', a: f.a || '' })),
+      metrics: r.metrics || null
+    })).filter(x => x.question || x.answer);
+    return { report, transcript };
   },
 
   // 单条会话 / 历史 / 成长曲线
