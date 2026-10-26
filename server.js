@@ -378,6 +378,37 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
+/* ---------------- 进程级兜底 ----------------
+ * 复盘结论：历史上服务多次「莫名 exit code 1」，面试中途全部中断。
+ * 根因是 Node 默认行为——任何未捕获异常 / 未处理 Promise 拒绝都会直接杀死进程。
+ * 对「一场面试要连续跑 20 分钟」的长会话服务，正确做法是：记录现场、保持存活。
+ */
+process.on('uncaughtException', err => {
+  console.error('[uncaughtException]', (err && err.stack) || err);
+});
+process.on('unhandledRejection', err => {
+  console.error('[unhandledRejection]', (err && err.stack) || err);
+});
+
+// 端口被占用：给出能照做的中文提示，而不是抛一段调用栈
+server.on('error', e => {
+  if (e.code === 'EADDRINUSE') {
+    console.error(`\n  x 端口 ${PORT} 已被占用：面镜服务可能已经在运行，直接访问 http://localhost:${PORT} 即可。`);
+    console.error(`    若要重启，请先关闭占用该端口的程序（netstat -ano | findstr :${PORT}）再启动。\n`);
+    process.exit(1);
+  }
+  console.error('[server error]', e);
+});
+
+// 优雅退出：Ctrl+C / 被任务管理器结束时不留半截数据
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.on(sig, () => {
+    console.log('\n  正在保存并退出…');
+    try { server.close(() => process.exit(0)); } catch { process.exit(0); }
+    setTimeout(() => process.exit(0), 1500);
+  });
+}
+
 db.init();
 bank.init();
 rag.init();
