@@ -45,6 +45,51 @@ cd agent-collab
 
 ---
 
+## 🧠 多 Agent 协作（不是一句提示词包打天下）
+
+一场面试由 **4 个专职 Agent 分工完成**，每个都在「思考 → 调工具 → 看结果 → 再决策」的循环里工作：
+
+| Agent | 职责 | 可用工具 |
+|---|---|---|
+| **面试官 Agent** | 主持对话：边听边决定追问 / 深挖 / 换知识点 / 下一题 | `analyze_answer` `search_knowledge` `find_question` `record_observation` `adjust_plan` |
+| **评估官 Agent** | 面试结束后基于真实作答数据打分、逐题复盘、修正初版分数 | `stat_rounds` `lookup_knowledge` `bank_reference` |
+| **陪练官 Agent** | 针对薄弱点检索知识库，产出可执行的一周提升计划与练习题 | `lookup_knowledge` `stat_rounds` `bank_reference` |
+| **出题官 Agent** | 按 JD / 知识点生成新题（可导入题库） | `bank_reference` `lookup_knowledge` `draft_question` |
+
+关键在于**决策来自模型 + 工具返回的真实数据**，而不是 if/else：
+
+- 候选人答偏了 → 面试官 Agent 自己发现"他答的是线程池不是 HashMap"，把话拉回来
+- 候选人说"不会" → 它调 `find_question` 换一道更基础的题，而不是机械念下一题
+- 报告里"综合分"不是凭空写的 → 评估官先调 `stat_rounds` 拿到每题字数、关键词命中率、放弃次数，再据此打分并修正初版报告
+
+面试间右侧的 **🧠 Agent 工作台** 会把这些过程**实时画出来**（第几次决策、调了什么工具、工具返回了什么、因此决定说什么），面试不是黑箱。
+
+## 🔌 MCP：把面试能力开放给外部 Agent
+
+面镜内置一个**零依赖的 MCP Server**（`mcp/mockmirror-mcp.js`，stdio / JSON-RPC 2.0），Claude Desktop、WorkBuddy、Cursor 等支持 MCP 的客户端可以直接调用：
+
+```json
+{
+  "mcpServers": {
+    "mockmirror": {
+      "command": "node",
+      "args": ["<你的路径>/mockmirror/mcp/mockmirror-mcp.js"]
+    }
+  }
+}
+```
+
+> 使用前先启动面镜（`启动面试.bat` 或 `node server.js`）。写状态的操作会转发给本机服务，只读能力（题库 / 知识库 / 岗位）不依赖服务。
+> 想换端口：设置环境变量 `MOCKMIRROR_URL=http://127.0.0.1:3001`。
+
+**9 个工具**：`list_positions`、`search_questions`、`start_interview`、`submit_answer`、`finish_interview`、`get_report`、`analyze_answer`、`knowledge_lookup`、`list_sessions`
+
+**3 类资源**：`mockmirror://positions`、`mockmirror://bank/{position}`、`mockmirror://knowledge/{position}`
+
+**2 个 Prompt 模板**：`mock_interview`（引导外部 Agent 主持一整场面试）、`interview_review`（复盘某场面试并生成学习计划）
+
+一句话效果：在 Claude 里说"用 MockMirror 帮我面一场 Java 后端"，它会自己调 `list_positions → start_interview → submit_answer × N → finish_interview`，最后给你复盘。
+
 ## 🔐 企业级特性
 
 - **AI 接入门禁**：未配置大模型时，服务端直接拒绝开始面试（HTTP 428 + 引导），杜绝"看起来能 AI 实际是脚本"的假体验
@@ -56,8 +101,11 @@ cd agent-collab
 ## 🧪 测试
 
 ```bash
+node test/mcp.js                      # MCP 协议自检（18 项，无需大模型）
+node test/mcp-live.js                 # 用 MCP 工具跑完整场面试（12 项，需已配置大模型）
 node test/llm-e2e.js java-backend 4   # AI 全流程实测（需已配置大模型）
 node test/ai-safety.js                # AI 安全/边界实验：提示注入、幻觉、空回答
+node test/agent-panel.js              # Agent 工作台面板（Playwright，24 项）
 cd python-agent && python -m pytest   # Python Agent 回归（31 例）
 ```
 
@@ -114,6 +162,9 @@ agent-collab/
 ├── 启动面试.bat / start.sh     # 一键启动脚本（Windows / macOS·Linux）
 ├── server.js                   # ① 面试系统服务入口（静态资源 + REST API）
 ├── lib/                        #   数据层 / 题库 / RAG / LLM / 面试流程控制
+│   ├── agent.js                #   面试官 Agent 运行时（工具调用 + 观察-决策循环）
+│   └── agentTeam.js            #   多 Agent 协作（评估官 / 陪练官 / 出题官）
+├── mcp/mockmirror-mcp.js       #   MCP Server（零依赖，stdio）—— 开放给外部 Agent 调用
 ├── public/                     #   前端单页应用 + MediaPipe 本地视觉模型
 ├── data/                       #   岗位题库、知识库语料（运行时数据自动生成）
 ├── test/e2e.js                 #   Playwright 端到端测试

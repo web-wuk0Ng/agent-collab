@@ -630,8 +630,98 @@ function mtgSide(tab) {
   document.querySelectorAll('.side-tab').forEach(b => b.classList.toggle('active', b.dataset.mtab === tab));
   $('mtab-chat').classList.toggle('hidden', tab !== 'chat');
   $('mtab-stats').classList.toggle('hidden', tab !== 'stats');
+  $('mtab-agent').classList.toggle('hidden', tab !== 'agent');
   $('ctrl-chat').classList.toggle('on', tab === 'chat');
   $('ctrl-stats').classList.toggle('on', tab === 'stats');
+  $('ctrl-agent').classList.toggle('on', tab === 'agent');
+  if (tab === 'agent' && !agentRolesLoaded) loadAgentRoles();
+}
+
+/* ---------------- Agent 工作台：把「思考 → 工具 → 观察 → 结论」画出来 ---------------- */
+let agentRolesLoaded = false;
+let agentRoundNo = 0;
+
+/** 拉取 4 个 Agent 角色的职责与各自可用的工具 */
+async function loadAgentRoles() {
+  agentRolesLoaded = true;
+  const box = $('agent-roles');
+  try {
+    const r = await API('/api/agent/roles');
+    box.innerHTML = (r.roles || []).map(x => `
+      <div class="ar-card" data-role="${x.id}">
+        <div class="ar-head"><b>${x.name}</b><span class="ar-live" data-live="${x.id}">待运行</span></div>
+        <p>${x.duty}</p>
+        <div class="ar-tools">${(x.tools || []).map(t => `<em>${toolCN[t] || t}</em>`).join('')}</div>
+      </div>`).join('');
+  } catch {
+    box.innerHTML = '<p class="side-hint">角色信息暂不可用</p>';
+  }
+}
+
+const toolCN = {
+  analyze_answer: '分析回答', search_knowledge: '检索知识库', find_question: '题库选题',
+  record_observation: '记录观察', adjust_plan: '调整计划',
+  stat_rounds: '统计作答', lookup_knowledge: '查知识库', bank_reference: '查标准答案', draft_question: '生成题目'
+};
+
+/** 观察结果渲染成可读的一行（不同工具的关键字段不同） */
+function obsLine(tool, o) {
+  if (!o || typeof o !== 'object') return String(o || '').slice(0, 120);
+  if (tool === 'analyze_answer') {
+    const hit = o.命中 || [], miss = o.遗漏 || [];
+    return `答到 ${hit.length} 点${hit.length ? '：' + hit.join('、') : ''}；漏 ${miss.length} 点${miss.length ? '：' + miss.join('、') : ''}；深度 ${o.深度 ?? '-'}/5${o.含糊 ? '，偏含糊' : ''}${o.建议追问 ? '｜建议追问：' + o.建议追问 : ''}`;
+  }
+  if (tool === 'find_question') return o.命中 ? `选中：${o.选中}` : '没有匹配的候选题';
+  if (tool === 'search_knowledge') return `「${o.检索词}」命中 ${o.命中条数} 条${o.首条 ? '：' + o.首条 : ''}`;
+  if (tool === 'record_observation') return `记下：${o.记录}（累计 ${o.累计 ?? '-'} 条）`;
+  if (tool === 'adjust_plan') return `计划调整为 ${o.动作}，剩余 ${o.剩余题数} 题`;
+  return JSON.stringify(o).slice(0, 160);
+}
+
+/** 把一次 Agent 决策画成思维链卡片 */
+function renderAgentTrace(agent) {
+  if (!agent) return;
+  const box = $('agent-trace');
+  box.querySelector('.at-empty') && box.querySelector('.at-empty').remove();
+  agentRoundNo += 1;
+  const steps = agent.trace || [];
+  const card = document.createElement('div');
+  card.className = 'at-card';
+  const head = agent.prefetched
+    ? '<span class="at-tag prefetch">⚡ 预取命中 · 0ms</span>'
+    : `<span class="at-tag">第 ${agentRoundNo} 次决策 · ${steps.length} 步</span>`;
+  const body = steps.length
+    ? steps.map((s, i) => `
+      <div class="at-step">
+        <div class="at-i">${i + 1}</div>
+        <div class="at-body">
+          <p class="at-think"><em>思考</em>${escapeHtml(s.thought || '')}</p>
+          <p class="at-tool"><em>调用</em><code>${escapeHtml(s.tool || '')}</code>${s.args && s.args !== '{}' ? `<span class="at-args">${escapeHtml(s.args)}</span>` : ''}</p>
+          <p class="at-obs"><em>看到</em>${escapeHtml(obsLine(s.tool, s.observation))}</p>
+        </div>
+      </div>`).join('')
+    : `<p class="at-think"><em>思考</em>${escapeHtml(agent.thought || '按规则推进')}</p>`;
+  card.innerHTML = `${head}
+    <p class="at-conclusion"><em>决定</em>${escapeHtml(agent.thought || '')}</p>
+    ${body}`;
+  box.prepend(card);
+  // 只保留最近 4 次决策，避免面板无限变长
+  while (box.children.length > 4) box.lastElementChild.remove();
+  // 角色卡上点亮刚工作过的 Agent
+  markAgentLive('interviewer');
+}
+
+function markAgentLive(roleId) {
+  const tag = document.querySelector(`.ar-live[data-live="${roleId}"]`);
+  if (!tag) return;
+  tag.textContent = '工作中…';
+  tag.classList.add('on');
+  clearTimeout(tag._t);
+  tag._t = setTimeout(() => { tag.textContent = '已完成'; tag.classList.remove('on'); }, 2600);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 function toggleViewMode() {
@@ -828,9 +918,9 @@ async function submitAnswer(fromVoice) {
     // Agent 决策可视化：让候选人看到面试官"在想什么、调用了什么工具"
     if (r.agent && r.agent.thought) {
       const tools = (r.agent.tools || []).filter(Boolean);
-      const toolCN = { analyze_answer: '分析回答', search_knowledge: '检索知识库', find_question: '题库选题', record_observation: '记录观察', adjust_plan: '调整计划' };
       addMsg('sys', '🤔 面试官 Agent 思考：' + r.agent.thought +
         (tools.length ? `（调用工具：${tools.map(t => toolCN[t] || t).join(' · ')}${r.agent.steps ? `，共 ${r.agent.steps} 步` : ''}）` : ''));
+      renderAgentTrace(r.agent);   // 同步画到「Agent 工作台」面板
     }
     if (r.followUp) {
       // 面试官追问，题目不变
@@ -1589,6 +1679,9 @@ async function finishInterview(auto = false) {
   try {
     const videoMetrics = (sess.mode === 'video' && camStream) ? VisionMonitor.summary() : null;
     const { report, transcript } = await API('/api/interview/finish', { sessionId: sess.id, videoMetrics });
+    // 报告收尾阶段：评估官与陪练官并行工作过，点亮角色卡（若用户打开过工作台）
+    markAgentLive('evaluator');
+    markAgentLive('coach');
     state.lastReportSessionId = sess.id;
     state.session = null;
     pending = null;
@@ -1659,6 +1752,33 @@ function renderReport(rep, sessionMeta, transcript) {
           ${t.metrics ? `<div class="rp-m">语速 ${t.metrics.wpm || '-'} 字/分 · 时长 ${t.metrics.seconds || '-'}s · 口头禅 ${t.metrics.fillers || 0} 次 · 自信度 ${t.metrics.confidence || '-'}</div>` : ''}
         </div>`).join('')}
       </div>
+    </section>` : ''}
+
+    ${(rep.agentVerdict || (rep.agentPerQuestion || []).length) ? `
+    <section class="card agent-card">
+      <h2>🤖 多 Agent 复核（评估官 Agent）</h2>
+      ${rep.agentVerdict ? `<p class="ag-verdict">${esc(rep.agentVerdict)}</p>` : ''}
+      ${(rep.agentPerQuestion || []).length ? `
+      <div class="ag-table">
+        ${rep.agentPerQuestion.map(q => `
+          <div class="ag-row">
+            <div class="ag-head"><span class="ag-lv lv-${q.level === '优秀' ? 'good' : q.level === '良好' ? 'mid' : 'low'}">${esc(q.level || '-')}</span><b>${esc(q.question || '')}</b></div>
+            ${q.hit ? `<p><em class="g">答到</em>${esc(q.hit)}</p>` : ''}
+            ${q.miss ? `<p><em class="r">漏掉</em>${esc(q.miss)}</p>` : ''}
+            ${q.better ? `<p><em class="b">该怎么答</em>${esc(q.better)}</p>` : ''}
+          </div>`).join('')}
+      </div>` : ''}
+    </section>` : ''}
+
+    ${rep.coachPlan ? `
+    <section class="card agent-card">
+      <h2>🏋 陪练官 Agent 的提升计划</h2>
+      ${(rep.coachPlan.focus || []).length ? `<div class="ag-focus">${rep.coachPlan.focus.map(f => `<span>${esc(f)}</span>`).join('')}</div>` : ''}
+      ${(rep.coachPlan.plan || []).length ? `<div class="ag-plan">${rep.coachPlan.plan.map(p => `
+        <div class="ag-day"><b>${esc(p.day || '')}</b><span>${esc(p.topic || '')}</span><p>${esc(p.action || '')}</p>${p.material ? `<small>资料：${esc(p.material)}</small>` : ''}</div>`).join('')}</div>` : ''}
+      ${(rep.coachPlan.drills || []).length ? `<h3 class="ag-sub">针对性练习</h3><div class="ag-drills">${rep.coachPlan.drills.map(d => `
+        <div class="ag-drill"><p>${esc(d.question || '')}</p>${d.hint ? `<small>思路：${esc(d.hint)}</small>` : ''}</div>`).join('')}</div>` : ''}
+      ${rep.coachPlan.encourage ? `<p class="ag-enc">${esc(rep.coachPlan.encourage)}</p>` : ''}
     </section>` : ''}
 
     <section class="card"><h2>💡 改进建议</h2><ul class="rep-list advice">${(rep.advice || []).map(s => `<li>${esc(s)}</li>`).join('')}</ul></section>

@@ -225,6 +225,7 @@
         <div class="side-tabs">
           <button class="side-tab active" data-mtab="chat" onclick="mtgSide('chat')">💬 面试对话</button>
           <button class="side-tab" data-mtab="stats" onclick="mtgSide('stats')">📊 临场分析</button>
+          <button class="side-tab" data-mtab="agent" onclick="mtgSide('agent')">🧠 Agent 工作台</button>
         </div>
 
         <div id="mtab-chat" class="side-body">
@@ -276,6 +277,21 @@
             <ul id="iv-skills" class="skills"></ul>
           </div>
         </div>
+
+        <div id="mtab-agent" class="side-body hidden">
+          <div class="side-block">
+            <h3>🤖 多 Agent 协作</h3>
+            <p class="side-hint">这场面试由 4 个专职 Agent 分工完成，不是一句提示词包打天下。</p>
+            <div id="agent-roles" class="agent-roles"></div>
+          </div>
+          <div class="side-block">
+            <h3>🧠 面试官思考链</h3>
+            <p class="side-hint">面试官每说一句话前，都会先思考、调用工具、看结果再决定说什么。这个过程实时显示在这里——面试不是黑箱。</p>
+            <div id="agent-trace" class="agent-trace">
+              <p class="at-empty">等你提交第一个回答后，这里会展示面试官 Agent 的完整决策过程。</p>
+            </div>
+          </div>
+        </div>
       </aside>
     </div>
 
@@ -287,6 +303,7 @@
         <button class="ctrl" id="ctrl-stop" onclick="onSpaceKey()" title="空格键：让面试官停下 / 我说完了提交"><i>⏹</i><span>停/提交</span></button>
         <button class="ctrl" id="ctrl-chat" onclick="mtgSide('chat')" title="面试对话"><i>💬</i><span>对话</span></button>
         <button class="ctrl" id="ctrl-stats" onclick="mtgSide('stats')" title="临场分析"><i>📊</i><span>分析</span></button>
+        <button class="ctrl" id="ctrl-agent" onclick="mtgSide('agent')" title="Agent 工作台"><i>🧠</i><span>Agent</span></button>
         <button class="ctrl" id="ctrl-dev" onclick="toggleDevPanel()" title="麦克风设备"><i>🎚</i><span>设备</span></button>
       </div>
       <div class="bar-mid">

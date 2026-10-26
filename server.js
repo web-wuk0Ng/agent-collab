@@ -15,6 +15,7 @@ const rag = require('./lib/rag');
 const llm = require('./lib/llm');
 const interview = require('./lib/interview');
 const asr = require('./lib/asr');
+const team = require('./lib/agentTeam');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -176,7 +177,8 @@ const routes = {
       status: 'ongoing',
       startedAt: Date.now(),
       rounds: [],                       // {qIndex, question, type, answer, metrics, followUps:[]}
-      plan                             // 计划的题目序列（含内嵌完整题目）
+      plan,                            // 计划的题目序列（含内嵌完整题目）
+      planSize: plan.length             // 终止边界：Agent 可在计划内换题，但不会超出这个题数
     };
     // 用 LLM 生成面试官开场白（离线引擎也有对应实现）
     const greeting = await llm.interviewerGreeting(p.position, firstQ, p.rounds || 6);
@@ -242,10 +244,14 @@ const routes = {
         samples: +v.samples || 0
       };
     }
-    const report = await interview.generateReport(s);
+    // 初版报告 → 交给「评估官 Agent + 陪练官 Agent」并行复核与补强（多 Agent 协作）
+    const baseReport = await interview.generateReport(s);
+    const finalized = await team.finalize(s, baseReport);
+    const report = finalized.report;
     s.status = 'finished';
     s.finishedAt = Date.now();
     s.report = report;
+    s.agentTeam = finalized.team;
     db.saveSession(s);
     db.addHistory(s);
     // 面试全程回放：题目 → 你的回答 → 追问与补充（用于复盘，报告页展示）
@@ -294,6 +300,44 @@ const routes = {
   },
   'POST /api/admin/bank/import': (p, q, req) => { requireAdmin(req); return bank.importCustom(p); },
   'POST /api/admin/bank/delete': (p, q, req) => { requireAdmin(req); return bank.deleteCustom(p.position); },
+
+  /* ---------- 多 Agent 团队（面试官 / 评估官 / 陪练官 / 出题官） ---------- */
+  // 团队档案：前端「Agent 工作台」展示各角色职责与最近一次运行情况
+  'GET /api/agent/roles': (p, query) => ({
+    roles: [
+      { id: 'interviewer', name: '面试官 Agent', duty: '主持对话：边听边决策（追问 / 深挖 / 换知识点 / 下一题）', tools: Object.keys(require('./lib/agent').TOOLS) },
+      { id: 'evaluator', name: '评估官 Agent', duty: '基于真实作答数据打分，逐题复盘，修正初版评分', tools: ['stat_rounds', 'lookup_knowledge', 'bank_reference'] },
+      { id: 'coach', name: '陪练官 Agent', duty: '针对薄弱点检索知识库，产出可执行的一周提升计划', tools: ['lookup_knowledge', 'stat_rounds', 'bank_reference'] },
+      { id: 'writer', name: '出题官 Agent', duty: '按 JD / 知识点动态生成题目，可扩充题库', tools: ['bank_reference', 'lookup_knowledge', 'draft_question'] }
+    ],
+    team: query.id ? ((db.getSession(query.id) || {}).agentTeam || null) : null
+  }),
+  // 单条回答即时批改（练习模式 / MCP 工具 analyze_answer）
+  'POST /api/agent/analyze': async (p) => {
+    const question = String(p.question || '').trim();
+    const answer = String(p.answer || '').trim();
+    if (!question || !answer) throw new Error('题目与回答都不能为空');
+    if (!rateLimit('analyze', 30, 60 * 1000)) throw apiError('操作过于频繁，请稍后再试', 429, 'RATE_LIMITED');
+    const r = await team.analyzeOne({
+      position: String(p.position || ''),
+      question, points: Array.isArray(p.points) ? p.points : [], answer
+    });
+    if (!r.ok || !r.final) throw new Error('批改失败，请重试');
+    return { ...r.final, role: r.roleName, thought: r.thought, trace: r.trace };
+  },
+  // 出题官：按知识点 / JD 生成新题（草稿，可在管理中心导入题库）
+  'POST /api/agent/write': async (p) => {
+    const topic = String(p.topic || '').trim().slice(0, 100);
+    const jd = String(p.jd || '').trim().slice(0, 2000);
+    if (!topic && jd.length < 30) throw new Error('请给出知识点，或粘贴至少 30 字的岗位 JD');
+    if (!rateLimit('write', 15, 60 * 1000)) throw apiError('操作过于频繁，请稍后再试', 429, 'RATE_LIMITED');
+    const r = await team.writeQuestions(
+      { position: String(p.position || '') },
+      { topic, jd, count: Math.max(1, Math.min(parseInt(p.count, 10) || 3, 8)) }
+    );
+    if (!r.ok || !r.final) throw new Error('出题失败，请重试');
+    return { questions: r.final.questions || [], thought: r.thought, trace: r.trace };
+  },
 
   // 健康检查（部署探针 / 可观测性）
   'GET /api/health': () => ({ status: 'ok', name: 'MockMirror', ai: llm.publicConfig(), db: db.stats() })

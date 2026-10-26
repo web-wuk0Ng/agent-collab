@@ -38,7 +38,9 @@ const WAV = path.resolve('test/fixtures/answer-with-gap.wav');
   // 1. 界面确认：没有输入框、没有发送按钮
   ok(!(await page.isVisible('#answer-input')), '文字输入框已隐藏（无打字入口）');
   ok(!(await page.$('.chat-input .btn.primary')), '「回答完毕」发送按钮已移除');
-  ok(await page.isVisible('#voice-live'), '实时字幕区存在');
+  // 识别结果只在后台用于提交，不展示到界面上（避免面试时候选人盯着文字念）
+  ok(!(await page.isVisible('#voice-live')), '识别文字不展示到界面（后台识别、只显示收音状态）');
+  ok(!!(await page.$('#voice-live')), '识别缓冲区仍然存在（用于自动提交判定）');
 
   // 2. 关掉面试官 TTS，避免假麦克风录到 TTS 声音（测试环境无回声消除）
   await page.evaluate(() => { document.getElementById('tts-on').checked = false; });
@@ -56,8 +58,9 @@ const WAV = path.resolve('test/fixtures/answer-with-gap.wav');
     if (live.length > transcript.length) transcript = live;
     if (transcript.length >= 8) break;
   }
-  console.log('   字幕内容:', JSON.stringify(transcript));
-  ok(transcript.length > 0, '实时字幕出现了识别文字');
+  console.log('   后台识别内容:', JSON.stringify(transcript));
+  ok(transcript.length > 0, '后台识别出了文字（用于自动提交）');
+  ok(!(await page.isVisible('#voice-live')), '识别过程中界面依然不显示文字');
   await page.screenshot({ path: 'test/shots/voice-01-auto.png' });
 
   // 4. 关键行为：没说结束词时不抢答（可以一直说、随便停顿）

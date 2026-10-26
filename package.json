@@ -7,7 +7,10 @@
     "start": "node server.js",
     "setup": "node scripts/setup-asr.js",
     "setup:skip": "node scripts/setup-asr.js --skip",
-    "test": "node test/ai-safety.js"
+    "test": "node test/ai-safety.js",
+    "test:mcp": "node test/mcp.js",
+    "test:mcp-live": "node test/mcp-live.js",
+    "mcp": "node mcp/mockmirror-mcp.js"
   },
   "engines": {
     "node": ">=18"

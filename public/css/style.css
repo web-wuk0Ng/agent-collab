@@ -440,6 +440,38 @@ body.in-meeting .topbar { display: none; }
 .mtg-side .skills { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
 .mtg-side .skills li { font-size: 11.5px; background: var(--primary-soft); border-radius: 6px; padding: 4px 9px; color: var(--primary-2); }
 
+/* ---------- Agent 工作台（多 Agent 协作 + 思考链可视化） ---------- */
+.agent-roles { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.ar-card { background: #f7f8fa; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
+.ar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ar-head b { font-size: 12.5px; color: var(--ink); }
+.ar-live { font-size: 10.5px; color: #8b94a8; background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 2px 8px; white-space: nowrap; }
+.ar-live.on { color: var(--primary-2); border-color: var(--primary); background: var(--primary-soft); }
+.ar-card p { font-size: 11.5px; color: var(--ink-2); line-height: 1.6; margin: 4px 0 6px; }
+.ar-tools { display: flex; flex-wrap: wrap; gap: 4px; }
+.ar-tools em { font-style: normal; font-size: 10.5px; color: var(--primary-2); background: var(--primary-soft); border-radius: 5px; padding: 2px 6px; }
+
+.agent-trace { display: flex; flex-direction: column; gap: 8px; }
+.at-empty { font-size: 12px; color: #8b94a8; line-height: 1.7; }
+.at-card { border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; background: #fff; }
+.at-tag { display: inline-block; font-size: 10.5px; color: var(--ink-2); background: #f2f4f7; border-radius: 20px; padding: 2px 8px; margin-bottom: 6px; }
+.at-tag.prefetch { color: var(--primary-2); background: var(--primary-soft); }
+.at-conclusion { font-size: 12px; color: var(--ink); line-height: 1.65; margin-bottom: 8px; }
+.at-conclusion em, .at-think em, .at-tool em, .at-obs em {
+  font-style: normal; font-size: 10.5px; color: #fff; background: var(--ink-2);
+  border-radius: 4px; padding: 1px 5px; margin-right: 6px; vertical-align: 1px;
+}
+.at-think em { background: #6b7cff; }
+.at-tool em { background: var(--primary-2); }
+.at-obs em { background: #8b94a8; }
+.at-step { display: flex; gap: 8px; padding: 7px 0; border-top: 1px dashed var(--line); }
+.at-i { flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--primary-soft); color: var(--primary-2); font-size: 11px; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+.at-body { flex: 1; min-width: 0; }
+.at-think, .at-tool, .at-obs { font-size: 11.5px; color: var(--ink-2); line-height: 1.65; margin-bottom: 4px; word-break: break-word; }
+.at-obs { margin-bottom: 0; }
+.at-tool code { font-size: 11px; color: var(--ink); background: #f2f4f7; border-radius: 4px; padding: 1px 5px; }
+.at-args { font-size: 10.5px; color: #a0a8b8; margin-left: 6px; }
+
 /* 底部控制栏（浅色 · 牛客面试间风） */
 .mtg-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; padding: 10px 18px; background: #fff; border-top: 1px solid var(--line); }
 .bar-left { display: flex; gap: 8px; }
@@ -487,6 +519,37 @@ body.in-meeting .topbar { display: none; }
 .rep-list.good li::before { content: "✅"; position: absolute; left: 0; }
 .rep-list.bad li::before { content: "⚠️"; position: absolute; left: 0; }
 .rep-list.advice li::before { content: "💡"; position: absolute; left: 0; }
+
+/* ---------- 报告：多 Agent 复核与陪练计划 ---------- */
+.agent-card { border-left: 3px solid var(--primary); }
+.ag-verdict { font-size: 14.5px; line-height: 1.8; color: var(--ink); background: var(--primary-soft); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+.ag-table { display: flex; flex-direction: column; gap: 10px; }
+.ag-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.ag-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.ag-head b { font-size: 13.5px; color: var(--ink); line-height: 1.5; }
+.ag-lv { flex: none; font-size: 11px; border-radius: 5px; padding: 2px 7px; }
+.ag-lv.lv-good { background: var(--primary-soft); color: var(--primary-2); }
+.ag-lv.lv-mid { background: #fff4e5; color: #b36a00; }
+.ag-lv.lv-low { background: #fdecec; color: #c93b3b; }
+.ag-row p { font-size: 12.5px; color: var(--ink-2); line-height: 1.7; margin-top: 4px; }
+.ag-row p em { font-style: normal; font-size: 11px; border-radius: 4px; padding: 1px 6px; margin-right: 6px; }
+.ag-row p em.g { background: var(--primary-soft); color: var(--primary-2); }
+.ag-row p em.r { background: #fdecec; color: #c93b3b; }
+.ag-row p em.b { background: #eaf2ff; color: #2a63d8; }
+.ag-focus { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.ag-focus span { font-size: 12.5px; background: var(--primary-soft); color: var(--primary-2); border-radius: 20px; padding: 5px 12px; }
+.ag-plan { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.ag-day { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fbfcfd; }
+.ag-day b { font-size: 12.5px; color: var(--primary-2); }
+.ag-day span { font-size: 12.5px; color: var(--ink); margin-left: 6px; }
+.ag-day p { font-size: 12px; color: var(--ink-2); line-height: 1.65; margin-top: 4px; }
+.ag-day small { display: block; font-size: 11px; color: #8b94a8; margin-top: 4px; }
+.ag-sub { font-size: 13px; margin: 14px 0 8px; color: var(--ink); }
+.ag-drills { display: flex; flex-direction: column; gap: 8px; }
+.ag-drill { border: 1px dashed var(--line); border-radius: 10px; padding: 9px 11px; }
+.ag-drill p { font-size: 13px; color: var(--ink); line-height: 1.6; }
+.ag-drill small { display: block; font-size: 11.5px; color: #8b94a8; margin-top: 4px; }
+.ag-enc { margin-top: 12px; font-size: 13px; color: var(--primary-2); }
 .rep-list.res li::before { content: "🔗"; position: absolute; left: 0; }
 table.rep-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 table.rep-table th, table.rep-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
