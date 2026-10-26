@@ -1,0 +1,36 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#FFFFFF', padding: 0, fontFamily: 'Microsoft YaHei' }}>
+  <Box style={{ position: 'absolute', top: 0, left: 0, width: '1280px', height: '12px', background: '#1E4FA8' }} />
+  <Box style={{ position: 'absolute', bottom: 0, left: 0, width: '1280px', height: '12px', background: '#1E4FA8' }} />
+  <Box style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: '0 100px' }}>
+    <Box style={{ width: '1080px', flexDirection: 'column', gap: 28, alignItems: 'center' }}>
+      <Text style={{ fontSize: 20, color: '#4A5568', letterSpacing: 4 }}>浙江师范大学第 9 届大学生服务外包创新应用竞赛</Text>
+      <Box style={{ width: '1080px', height: '2px', background: '#D6DCE5' }} />
+      <Text style={{ fontSize: 56, fontWeight: 'bold', color: '#1E4FA8', textAlign: 'center', lineHeight: 1.2 }}>
+        面镜 MockMirror
+      </Text>
+      <Text style={{ fontSize: 30, fontWeight: 'bold', color: '#1A2230', textAlign: 'center' }}>
+        AI 模拟面试与能力提升软件
+      </Text>
+      <Box style={{ width: '760px', padding: '14px 24px', background: '#E8EFF8', alignItems: 'center' }}>
+        <Text style={{ fontSize: 19, color: '#1E4FA8', textAlign: 'center' }}>
+          赛题 A11 · 自主决策的面试官 Agent · 全语音真实面试闭环
+        </Text>
+      </Box>
+      <Box style={{ width: '1080px', height: '2px', background: '#D6DCE5', marginTop: 12 }} />
+      <Box style={{ flexDirection: 'row', gap: 60, marginTop: 8 }}>
+        <Box style={{ flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+          <Text style={{ fontSize: 15, color: '#8B97A8' }}>参赛队</Text>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>面镜 MockMirror</Text>
+        </Box>
+        <Box style={{ flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+          <Text style={{ fontSize: 15, color: '#8B97A8' }}>团队成员</Text>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>王涛 · 谭绍卿 · 夏艺凡 · 覃佳维 · 江帆帆</Text>
+        </Box>
+        <Box style={{ flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+          <Text style={{ fontSize: 15, color: '#8B97A8' }}>汇报日期</Text>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>2026 年 10 月</Text>
+        </Box>
+      </Box>
+    </Box>
+  </Box>
+</Slide>

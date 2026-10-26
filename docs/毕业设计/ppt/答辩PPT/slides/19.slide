@@ -1,0 +1,69 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#FFFFFF', padding: 0, fontFamily: 'Microsoft YaHei' }}>
+  <Box style={{ position: 'absolute', top: 60, left: 60, width: '1160px', height: '64px', background: '#1E4FA8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FFFFFF' }}>创新点总结、局限与展望</Text>
+    <Text style={{ fontSize: 16, color: '#C7D8F5' }}>06 · Conclusion</Text>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 148, left: 60, width: '1160px', flexDirection: 'row', gap: 20 }}>
+    <Box style={{ width: '656px', flexDirection: 'column', gap: 10 }}>
+      <Text style={{ fontSize: 21, fontWeight: 'bold', color: '#1E4FA8' }}>创新点</Text>
+      <Box style={{ flexDirection: 'row', gap: 10 }}>
+        <Box style={{ width: '320px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.5 }}>Ⅰ 决策可视化：思考—工具—观察—结论全链路可见</Text>
+        </Box>
+        <Box style={{ width: '320px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.5 }}>Ⅱ 四个专职 Agent 分工协作并产出可核验结论</Text>
+        </Box>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 10 }}>
+        <Box style={{ width: '320px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.5 }}>Ⅲ MCP 协议对外开放，可被第三方 AI 直接调用</Text>
+        </Box>
+        <Box style={{ width: '320px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.5 }}>Ⅳ 本地离线语音识别，摆脱境外服务依赖</Text>
+        </Box>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 10 }}>
+        <Box style={{ width: '320px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.5 }}>Ⅴ 130+ 条术语归一，纠正口语技术名词误识别</Text>
+        </Box>
+        <Box style={{ width: '320px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.5 }}>Ⅵ 预取机制，把响应延迟从 1120 ms 压到 6 ms</Text>
+        </Box>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 10 }}>
+        <Box style={{ width: '320px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.5 }}>Ⅶ 隐私本地化：视频帧与语音均可不出本机</Text>
+        </Box>
+        <Box style={{ width: '320px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.5 }}>Ⅷ 零第三方依赖部署，clone 后双击即跑</Text>
+        </Box>
+      </Box>
+    </Box>
+
+    <Box style={{ width: '1px', background: '#D6DCE5' }} />
+
+    <Box style={{ width: '462px', flexDirection: 'column', gap: 14 }}>
+      <Box style={{ flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 21, fontWeight: 'bold', color: '#D9534F' }}>研究局限</Text>
+        <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.55 }}>· 语音音色依赖操作系统语音包，不同机器表现不一致</Text>
+        <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.55 }}>· 视觉分析仅统计抬头率与紧张度等基础指标</Text>
+        <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.55 }}>· 单进程单文件存储，尚不支持多人并发面试</Text>
+        <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.55 }}>· 题库覆盖 3 个岗位，未做跨专业扩展</Text>
+      </Box>
+      <Box style={{ width: '462px', height: '1px', background: '#E5E7EB' }} />
+      <Box style={{ flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 21, fontWeight: 'bold', color: '#1E4FA8' }}>后续方向</Text>
+        <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.55 }}>· 接入云端高质量音色作为可选升级</Text>
+        <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.55 }}>· 引入微表情与视线落点分析，给出表达建议</Text>
+        <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.55 }}>· 改用 SQLite 与会话锁，支持并发面试</Text>
+        <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.55 }}>· 建立跨场次能力画像，形成长期成长档案</Text>
+      </Box>
+    </Box>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 670, left: 60, width: '1160px', flexDirection: 'row', justifyContent: 'space-between' }}>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>面镜 MockMirror · AI 模拟面试与能力提升软件</Text>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>19 / 20</Text>
+  </Box>
+</Slide>

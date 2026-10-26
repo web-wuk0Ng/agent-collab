@@ -1,0 +1,53 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#FFFFFF', padding: 0, fontFamily: 'Microsoft YaHei' }}>
+  <Box style={{ position: 'absolute', top: 60, left: 60, width: '1160px', height: '64px', background: '#1E4FA8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FFFFFF' }}>Agent 行为实录（真实运行输出）</Text>
+    <Text style={{ fontSize: 16, color: '#C7D8F5' }}>05 · Evidence</Text>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 148, left: 60, width: '1160px', flexDirection: 'column', gap: 18 }}>
+    <Box style={{ flexDirection: 'column', gap: 8, padding: '16px 18px', background: '#F7F9FC', borderLeft: '4px solid #1E4FA8' }}>
+      <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1E4FA8' }}>场景一：候选人答偏（把线程池答成 HashMap）</Text>
+      <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>
+        Agent 思考：「他完全答偏了……得先礼貌拉回来，重新问 HashMap 的核心结构。」
+      </Text>
+      <Text style={{ fontSize: 16, color: '#4A5568', lineHeight: 1.55 }}>
+        行为：未顺着错误答案继续，而是纠正方向后重新提问——这是脚本式问答做不到的。
+      </Text>
+    </Box>
+
+    <Box style={{ flexDirection: 'column', gap: 8, padding: '16px 18px', background: '#F7F9FC', borderLeft: '4px solid #1E4FA8' }}>
+      <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1E4FA8' }}>场景二：候选人回答「不会」</Text>
+      <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>
+        Agent 思考：「候选人坦诚说不会，先不深挖，换一道更贴近日常开发的索引题，让他有话说。」
+      </Text>
+      <Text style={{ fontSize: 16, color: '#4A5568', lineHeight: 1.55 }}>
+        行为：自主降低难度并换知识点，而不是机械重复追问。
+      </Text>
+    </Box>
+
+    <Box style={{ flexDirection: 'column', gap: 8, padding: '16px 18px', background: '#F7F9FC', borderLeft: '4px solid #D9534F' }}>
+      <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1E4FA8' }}>场景三：最后一题的收尾判断</Text>
+      <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>
+        Agent 思考：「最后一题了，源码追问没意义，降到实战场景看他有没有基本的锁使用直觉，然后收尾。」
+      </Text>
+      <Text style={{ fontSize: 16, color: '#4A5568', lineHeight: 1.55 }}>
+        行为：感知到进度边界后主动收尾，避免面试被无限拖长。
+      </Text>
+    </Box>
+
+    <Box style={{ flexDirection: 'column', gap: 8, padding: '16px 18px', background: '#E8EFF8', borderLeft: '4px solid #1E4FA8' }}>
+      <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1E4FA8' }}>评估官：先取数据，再下结论</Text>
+      <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>
+        「候选人具备电商后端项目经历并能给出量化优化成果，但三道题关键词命中率全为 0，核心技术题几乎全部答偏，整体不通过。」
+      </Text>
+      <Text style={{ fontSize: 16, color: '#4A5568', lineHeight: 1.55 }}>
+        陪练官据此给出可执行计划：HashMap 底层结构 / ThreadLocal 原理 / 答题用「结论—原理—场景」三段式。
+      </Text>
+    </Box>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 670, left: 60, width: '1160px', flexDirection: 'row', justifyContent: 'space-between' }}>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>面镜 MockMirror · AI 模拟面试与能力提升软件</Text>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>17 / 20</Text>
+  </Box>
+</Slide>

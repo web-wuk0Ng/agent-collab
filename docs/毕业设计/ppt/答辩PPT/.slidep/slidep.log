@@ -1,0 +1,81 @@
+=== boot pid=34032 ts=2026-10-27 04:13:38.827 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/01.slide ===
+[2026-10-27 04:13:38.826] [INFO ] [pid=34032] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:13:38.879] [INFO ] [pid=34032] [slide-version] fileId=sid_mvpp version=0 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=24732 ts=2026-10-27 04:13:44.379 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/02.slide ===
+[2026-10-27 04:13:44.378] [INFO ] [pid=24732] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:13:44.427] [INFO ] [pid=24732] [slide-version] fileId=sid_mvpp version=1 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=24632 ts=2026-10-27 04:14:06.025 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/02.slide --page-index 1 ===
+[2026-10-27 04:14:06.024] [INFO ] [pid=24632] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:14:06.070] [INFO ] [pid=24632] [slide-version] fileId=sid_mvpp version=2 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=45064 ts=2026-10-27 04:15:04.781 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/03.slide ===
+[2026-10-27 04:15:04.780] [INFO ] [pid=45064] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:15:04.828] [INFO ] [pid=45064] [slide-version] fileId=sid_mvpp version=3 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=39856 ts=2026-10-27 04:15:10.376 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/04.slide ===
+[2026-10-27 04:15:10.375] [INFO ] [pid=39856] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:15:10.425] [INFO ] [pid=39856] [slide-version] fileId=sid_mvpp version=4 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=38960 ts=2026-10-27 04:16:06.459 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/05.slide ===
+[2026-10-27 04:16:06.458] [INFO ] [pid=38960] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:16:06.505] [INFO ] [pid=38960] [slide-version] fileId=sid_mvpp version=5 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=15300 ts=2026-10-27 04:16:12.125 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/06.slide ===
+[2026-10-27 04:16:12.124] [INFO ] [pid=15300] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:16:12.174] [INFO ] [pid=15300] [slide-version] fileId=sid_mvpp version=6 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=50204 ts=2026-10-27 04:17:13.580 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/07.slide ===
+[2026-10-27 04:17:13.580] [INFO ] [pid=50204] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:17:13.628] [INFO ] [pid=50204] [slide-version] fileId=sid_mvpp version=7 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=48820 ts=2026-10-27 04:17:19.388 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/08.slide ===
+[2026-10-27 04:17:19.387] [INFO ] [pid=48820] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:17:19.438] [INFO ] [pid=48820] [slide-version] fileId=sid_mvpp version=8 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=15972 ts=2026-10-27 04:17:31.878 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/08.slide --page-index 7 ===
+[2026-10-27 04:17:31.877] [INFO ] [pid=15972] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:17:31.926] [INFO ] [pid=15972] [slide-version] fileId=sid_mvpp version=9 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=37632 ts=2026-10-27 04:18:30.382 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/09.slide ===
+[2026-10-27 04:18:30.382] [INFO ] [pid=37632] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:18:30.430] [INFO ] [pid=37632] [slide-version] fileId=sid_mvpp version=10 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=48304 ts=2026-10-27 04:18:36.092 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/10.slide ===
+[2026-10-27 04:18:36.092] [INFO ] [pid=48304] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:18:36.140] [INFO ] [pid=48304] [slide-version] fileId=sid_mvpp version=11 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=39732 ts=2026-10-27 04:18:55.244 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/09.slide --page-index 8 ===
+[2026-10-27 04:18:55.243] [INFO ] [pid=39732] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:18:55.290] [INFO ] [pid=39732] [slide-version] fileId=sid_mvpp version=12 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=20628 ts=2026-10-27 04:19:01.012 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/10.slide --page-index 9 ===
+[2026-10-27 04:19:01.011] [INFO ] [pid=20628] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:19:01.060] [INFO ] [pid=20628] [slide-version] fileId=sid_mvpp version=13 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=44024 ts=2026-10-27 04:19:58.825 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/11.slide ===
+[2026-10-27 04:19:58.824] [INFO ] [pid=44024] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:19:58.871] [INFO ] [pid=44024] [slide-version] fileId=sid_mvpp version=14 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=45924 ts=2026-10-27 04:20:04.578 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/12.slide ===
+[2026-10-27 04:20:04.577] [INFO ] [pid=45924] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:20:04.627] [INFO ] [pid=45924] [slide-version] fileId=sid_mvpp version=15 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=44184 ts=2026-10-27 04:20:17.045 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/11.slide --page-index 10 ===
+[2026-10-27 04:20:17.045] [INFO ] [pid=44184] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:20:17.094] [INFO ] [pid=44184] [slide-version] fileId=sid_mvpp version=16 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=33516 ts=2026-10-27 04:21:08.294 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/13.slide ===
+[2026-10-27 04:21:08.293] [INFO ] [pid=33516] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:21:08.344] [INFO ] [pid=33516] [slide-version] fileId=sid_mvpp version=17 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=50668 ts=2026-10-27 04:21:14.034 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/14.slide ===
+[2026-10-27 04:21:14.034] [INFO ] [pid=50668] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:21:14.084] [INFO ] [pid=50668] [slide-version] fileId=sid_mvpp version=18 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=20876 ts=2026-10-27 04:22:17.826 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/15.slide ===
+[2026-10-27 04:22:17.826] [INFO ] [pid=20876] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:22:17.875] [INFO ] [pid=20876] [slide-version] fileId=sid_mvpp version=19 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=50208 ts=2026-10-27 04:22:23.634 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/16.slide ===
+[2026-10-27 04:22:23.633] [INFO ] [pid=50208] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:22:23.682] [INFO ] [pid=50208] [slide-version] fileId=sid_mvpp version=20 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=50048 ts=2026-10-27 04:23:15.059 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/17.slide ===
+[2026-10-27 04:23:15.058] [INFO ] [pid=50048] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:23:15.107] [INFO ] [pid=50048] [slide-version] fileId=sid_mvpp version=21 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=46836 ts=2026-10-27 04:23:20.736 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/18.slide ===
+[2026-10-27 04:23:20.735] [INFO ] [pid=46836] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:23:20.786] [INFO ] [pid=46836] [slide-version] fileId=sid_mvpp version=22 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=45296 ts=2026-10-27 04:24:05.884 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/19.slide ===
+[2026-10-27 04:24:05.883] [INFO ] [pid=45296] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:24:05.933] [INFO ] [pid=45296] [slide-version] fileId=sid_mvpp version=23 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=14012 ts=2026-10-27 04:24:11.504 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/20.slide ===
+[2026-10-27 04:24:11.504] [INFO ] [pid=14012] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:24:11.552] [INFO ] [pid=14012] [slide-version] fileId=sid_mvpp version=24 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=47096 ts=2026-10-27 04:24:22.650 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/19.slide --page-index 18 ===
+[2026-10-27 04:24:22.650] [INFO ] [pid=47096] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:24:22.696] [INFO ] [pid=47096] [slide-version] fileId=sid_mvpp version=25 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx
+=== boot pid=15612 ts=2026-10-27 04:24:34.701 cwd=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT argv=C:\Users\31349\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl 答辩PPT.pptx --dsl-file slides/19.slide --page-index 18 ===
+[2026-10-27 04:24:34.700] [INFO ] [pid=15612] [server-url] baseUrl=http://localhost:39099 source=portFile(C:\Users\31349\.workbuddy\tencent-docs-engine.port)
+[2026-10-27 04:24:34.748] [INFO ] [pid=15612] [slide-version] fileId=sid_mvpp version=26 filePath=D:\2026misc\软件项目实训\mockmirror\docs\毕业设计\ppt\答辩PPT\答辩PPT.pptx

@@ -1,0 +1,64 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#FFFFFF', padding: 0, fontFamily: 'Microsoft YaHei' }}>
+  <Box style={{ position: 'absolute', top: 60, left: 60, width: '1160px', height: '64px', background: '#1E4FA8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FFFFFF' }}>研究问题与考核目标</Text>
+    <Text style={{ fontSize: 16, color: '#C7D8F5' }}>01 · Objectives</Text>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 148, left: 60, width: '1160px', flexDirection: 'column', gap: 20 }}>
+    <Box style={{ flexDirection: 'column', gap: 10, paddingBottom: 16, borderBottom: '1px solid #E5E7EB' }}>
+      <Box style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start' }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E4FA8', width: '48px' }}>Q1</Text>
+        <Text style={{ fontSize: 19, color: '#1A2230', width: '480px', lineHeight: 1.5 }}>
+          如何在国内网络环境下实现可用的全语音面试交互？
+        </Text>
+        <Text style={{ fontSize: 18, color: '#4A5568', width: '600px', lineHeight: 1.5 }}>
+          考核目标：本地离线识别引擎 + 浏览器识别回退，识别实时率 RTF ≤ 0.5，断网可完成整场面试。
+        </Text>
+      </Box>
+    </Box>
+
+    <Box style={{ flexDirection: 'column', gap: 10, paddingBottom: 16, borderBottom: '1px solid #E5E7EB' }}>
+      <Box style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start' }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E4FA8', width: '48px' }}>Q2</Text>
+        <Text style={{ fontSize: 19, color: '#1A2230', width: '480px', lineHeight: 1.5 }}>
+          如何让面试官具备自主决策能力，而不是播放固定脚本？
+        </Text>
+        <Text style={{ fontSize: 18, color: '#4A5568', width: '600px', lineHeight: 1.5 }}>
+          考核目标：构建「观察—思考—工具—观察—决策」循环，单轮最多 3 次工具调用，决策过程对用户可见。
+        </Text>
+      </Box>
+    </Box>
+
+    <Box style={{ flexDirection: 'column', gap: 10, paddingBottom: 16, borderBottom: '1px solid #E5E7EB' }}>
+      <Box style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start' }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E4FA8', width: '48px' }}>Q3</Text>
+        <Text style={{ fontSize: 19, color: '#1A2230', width: '480px', lineHeight: 1.5 }}>
+          如何把一次面试的结果转化为可执行的提升方案？
+        </Text>
+        <Text style={{ fontSize: 18, color: '#4A5568', width: '600px', lineHeight: 1.5 }}>
+          考核目标：由专职 Agent 产出逐题「该怎么答」与一周练习计划，报告生成 ≤ 30 秒。
+        </Text>
+      </Box>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', gap: 24, marginTop: 6 }}>
+      <Box style={{ width: '360px', padding: '16px 18px', background: '#E8EFF8', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#1E4FA8' }}>159</Text>
+        <Text style={{ fontSize: 16, color: '#4A5568' }}>覆盖 3 个岗位的题库规模（题）</Text>
+      </Box>
+      <Box style={{ width: '360px', padding: '16px 18px', background: '#E8EFF8', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#1E4FA8' }}>0.041</Text>
+        <Text style={{ fontSize: 16, color: '#4A5568' }}>语音识别实时率 RTF（目标 ≤ 0.5）</Text>
+      </Box>
+      <Box style={{ width: '360px', padding: '16px 18px', background: '#E8EFF8', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#1E4FA8' }}>9</Text>
+        <Text style={{ fontSize: 16, color: '#4A5568' }}>对外开放的 MCP 工具数量（个）</Text>
+      </Box>
+    </Box>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 670, left: 60, width: '1160px', flexDirection: 'row', justifyContent: 'space-between' }}>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>面镜 MockMirror · AI 模拟面试与能力提升软件</Text>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>04 / 20</Text>
+  </Box>
+</Slide>

@@ -1,0 +1,73 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#FFFFFF', padding: 0, fontFamily: 'Microsoft YaHei' }}>
+  <Box style={{ position: 'absolute', top: 60, left: 60, width: '1160px', height: '64px', background: '#1E4FA8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FFFFFF' }}>关键技术一：本地离线语音识别链路</Text>
+    <Text style={{ fontSize: 16, color: '#C7D8F5' }}>04 · ASR</Text>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 148, left: 60, width: '1160px', flexDirection: 'column', gap: 18 }}>
+    <Box style={{ flexDirection: 'row', gap: 16, alignItems: 'stretch' }}>
+      <Box style={{ width: '176px', padding: '12px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 6, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1E4FA8' }}>浏览器采集</Text>
+        <Text style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.5 }}>AudioContext 16 kHz，2048 帧缓冲</Text>
+      </Box>
+      <Box style={{ width: '36px', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22, color: '#8B97A8' }}>→</Text></Box>
+      <Box style={{ width: '176px', padding: '12px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 6, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1E4FA8' }}>分片上传</Text>
+        <Text style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.5 }}>每 160 ms 一片 PCM 转 base64</Text>
+      </Box>
+      <Box style={{ width: '36px', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22, color: '#8B97A8' }}>→</Text></Box>
+      <Box style={{ width: '176px', padding: '12px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 6, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1E4FA8' }}>本机识别</Text>
+        <Text style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.5 }}>sherpa-onnx 流式 zipformer 双语模型</Text>
+      </Box>
+      <Box style={{ width: '36px', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22, color: '#8B97A8' }}>→</Text></Box>
+      <Box style={{ width: '176px', padding: '12px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 6, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1E4FA8' }}>端点检测</Text>
+        <Text style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.5 }}>静音 0.8 s 判定「这句话说完了」</Text>
+      </Box>
+      <Box style={{ width: '36px', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22, color: '#8B97A8' }}>→</Text></Box>
+      <Box style={{ width: '176px', padding: '12px', background: '#E8EFF8', flexDirection: 'column', gap: 6, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1E4FA8' }}>术语归一后提交</Text>
+        <Text style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.5 }}>瑞迪斯 → Redis，进入评估环节</Text>
+      </Box>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', gap: 20 }}>
+      <Box style={{ width: '560px', padding: '16px 18px', background: '#E8EFF8', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>为什么必须做本地识别</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>
+          项目初期浏览器语音识别频繁报 <span style={{ fontWeight: 'bold', color: '#D9534F' }}>network</span> 错误：根因是 Chrome 内置识别依赖境外服务，国内请求被阻断。
+        </Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>
+          这是外部依赖问题，重试没有意义。改为本地引擎后，断网也能完成整场面试。
+        </Text>
+      </Box>
+      <Box style={{ width: '560px', padding: '16px 18px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>两级回退与隔离设计</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>· 本地引擎 → 浏览器识别 → 提示改用键盘，流程始终可走完</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>· 每个会话独立音频流并设上限回收，并发时互不串音</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>· 双语模型支持中英混说，能听懂 Redis、JVM 这类英文技术词</Text>
+      </Box>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', gap: 20 }}>
+      <Box style={{ width: '360px', padding: '14px 16px', background: '#F7F9FC', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 4 }}>
+        <Text style={{ fontSize: 38, fontWeight: 'bold', color: '#1E4FA8' }}>0.041</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568' }}>识别实时率 RTF（目标 ≤ 0.5）</Text>
+      </Box>
+      <Box style={{ width: '360px', padding: '14px 16px', background: '#F7F9FC', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 4 }}>
+        <Text style={{ fontSize: 38, fontWeight: 'bold', color: '#1E4FA8' }}>320 ms</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568' }}>首字延迟（160 ms 分片 + 解码）</Text>
+      </Box>
+      <Box style={{ width: '360px', padding: '14px 16px', background: '#F7F9FC', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 4 }}>
+        <Text style={{ fontSize: 38, fontWeight: 'bold', color: '#1E4FA8' }}>260 MB</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568' }}>int8 量化模型，内存占用可控</Text>
+      </Box>
+    </Box>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 670, left: 60, width: '1160px', flexDirection: 'row', justifyContent: 'space-between' }}>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>面镜 MockMirror · AI 模拟面试与能力提升软件</Text>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>11 / 20</Text>
+  </Box>
+</Slide>

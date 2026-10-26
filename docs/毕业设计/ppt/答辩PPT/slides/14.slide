@@ -1,0 +1,50 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#FFFFFF', padding: 0, fontFamily: 'Microsoft YaHei' }}>
+  <Box style={{ position: 'absolute', top: 60, left: 60, width: '1160px', height: '64px', background: '#1E4FA8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FFFFFF' }}>数据安全与运行可靠性</Text>
+    <Text style={{ fontSize: 16, color: '#C7D8F5' }}>04 · Reliability</Text>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 148, left: 60, width: '1160px', flexDirection: 'column', gap: 18 }}>
+    <Box style={{ flexDirection: 'row', gap: 20 }}>
+      <Box style={{ width: '566px', padding: '16px 18px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 10 }}>
+        <Text style={{ fontSize: 21, fontWeight: 'bold', color: '#1E4FA8' }}>数据安全</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>· 口令随机盐 + 哈希存储，不保存明文；管理后台独立口令鉴权</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>· 大模型密钥仅存本地配置文件，该文件与备份目录已纳入 .gitignore</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>· 摄像头视频帧仅在本机内存推理，不上传、不落盘</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>· 静态资源路径规范化后校验前缀，越界返回 403；请求体超 5 MB 直接断开</Text>
+      </Box>
+      <Box style={{ width: '566px', padding: '16px 18px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 10 }}>
+        <Text style={{ fontSize: 21, fontWeight: 'bold', color: '#1E4FA8' }}>运行可靠性</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>· 原子写：先写临时文件再重命名，写一半崩溃不会损坏数据库</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>· 大模型失败自动重试一次；仍失败降级为离线面试官，面试继续</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>· 端口被占用、退出信号均给出可操作处理，不留半截数据</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>· 数据库带 schema 版本，迁移前自动备份</Text>
+      </Box>
+    </Box>
+
+    <Box style={{ padding: '16px 18px', background: '#E8EFF8', flexDirection: 'column', gap: 8 }}>
+      <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>一个真实缺陷的根因分析</Text>
+      <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>
+        现象：服务在面试中途偶发退出，整场面试中断。
+      </Text>
+      <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>
+        根因：<span style={{ fontWeight: 'bold', color: '#D9534F' }}>Node 对未捕获异常与未处理 Promise 拒绝的默认行为是终止进程</span>——一个边缘异常就会杀死整个服务。
+      </Text>
+      <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>
+        修复：增加进程级兜底，异常只记录堆栈不终止进程，保证二十分钟的连续会话不被一次异常打断。
+      </Text>
+    </Box>
+
+    <Box style={{ padding: '14px 18px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+      <Text style={{ fontSize: 17, color: '#1A2230', lineHeight: 1.5 }}>
+        <span style={{ fontWeight: 'bold' }}>复盘方法论：</span>
+        先找根因再动手。本项目早期若干问题（语音 network 错误、服务退出、面试结束不了）都曾有过「换个环境 / 换个浏览器」的绕过方案，但绕过式修复在演示现场一定会再次暴露。
+      </Text>
+    </Box>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 670, left: 60, width: '1160px', flexDirection: 'row', justifyContent: 'space-between' }}>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>面镜 MockMirror · AI 模拟面试与能力提升软件</Text>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>14 / 20</Text>
+  </Box>
+</Slide>

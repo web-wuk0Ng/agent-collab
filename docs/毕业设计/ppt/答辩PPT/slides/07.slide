@@ -1,0 +1,101 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#FFFFFF', padding: 0, fontFamily: 'Microsoft YaHei' }}>
+  <Box style={{ position: 'absolute', top: 60, left: 60, width: '1160px', height: '64px', background: '#1E4FA8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FFFFFF' }}>创新一：面试官 Agent 的自主决策循环</Text>
+    <Text style={{ fontSize: 16, color: '#C7D8F5' }}>03 · Agent Loop</Text>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 148, left: 60, width: '1160px', flexDirection: 'row', gap: 28 }}>
+    <Box style={{ width: '520px', flexDirection: 'column', gap: 10 }}>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Box style={{ width: '34px', height: '34px', background: '#1E4FA8', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' }}>1</Text>
+        </Box>
+        <Box style={{ flexDirection: 'column' }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>观察</Text>
+          <Text style={{ fontSize: 15, color: '#4A5568' }}>当前题、考察点、回答、已问题目、历史记忆、进度</Text>
+        </Box>
+      </Box>
+      <Box style={{ width: '2px', height: '12px', background: '#D6DCE5', marginLeft: '16px' }} />
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Box style={{ width: '34px', height: '34px', background: '#1E4FA8', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' }}>2</Text>
+        </Box>
+        <Box style={{ flexDirection: 'column' }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>思考</Text>
+          <Text style={{ fontSize: 15, color: '#4A5568' }}>输出 thought（这一段会展示给用户看）</Text>
+        </Box>
+      </Box>
+      <Box style={{ width: '2px', height: '12px', background: '#D6DCE5', marginLeft: '16px' }} />
+      <Box style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+        <Box style={{ width: '34px', height: '34px', background: '#D9534F', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' }}>3</Text>
+        </Box>
+        <Box style={{ flexDirection: 'column' }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>调用工具</Text>
+          <Text style={{ fontSize: 15, color: '#4A5568' }}>从 5 个工具中自主选择并给出参数</Text>
+        </Box>
+      </Box>
+      <Box style={{ width: '2px', height: '12px', background: '#D6DCE5', marginLeft: '16px' }} />
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Box style={{ width: '34px', height: '34px', background: '#1E4FA8', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' }}>4</Text>
+        </Box>
+        <Box style={{ flexDirection: 'column' }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>观察工具返回</Text>
+          <Text style={{ fontSize: 15, color: '#4A5568' }}>作为 observation 回灌上下文，再次思考</Text>
+        </Box>
+      </Box>
+      <Box style={{ width: '2px', height: '12px', background: '#D6DCE5', marginLeft: '16px' }} />
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Box style={{ width: '34px', height: '34px', background: '#1E4FA8', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' }}>5</Text>
+        </Box>
+        <Box style={{ flexDirection: 'column' }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>输出决策</Text>
+          <Text style={{ fontSize: 15, color: '#4A5568' }}>追问 / 深挖 / 换题降难度 / 点评后进入下一题</Text>
+        </Box>
+      </Box>
+    </Box>
+
+    <Box style={{ width: '1px', background: '#D6DCE5' }} />
+
+    <Box style={{ width: '580px', flexDirection: 'column', gap: 12 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E4FA8' }}>可调用工具集</Text>
+      <Box style={{ padding: '10px 14px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 'bold' }}>analyze_answer</span> · 调用大模型分析命中 / 缺失的考察点、深度 1-5、是否含糊
+        </Text>
+      </Box>
+      <Box style={{ padding: '10px 14px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 'bold' }}>search_knowledge</span> · 真实 BM25 检索岗位知识库（非向量模型，毫秒级）
+        </Text>
+      </Box>
+      <Box style={{ padding: '10px 14px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 'bold' }}>find_question</span> · 按知识点从未问题目中动态挑题（收尾阶段禁用）
+        </Text>
+      </Box>
+      <Box style={{ padding: '10px 14px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 'bold' }}>record_observation</span> · 记录候选人画像，影响后续提问与最终报告
+        </Text>
+      </Box>
+      <Box style={{ padding: '10px 14px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 'bold' }}>adjust_plan</span> · 调整后续计划：deepen（深挖）/ skip（跳过）/ switch（换方向）
+        </Text>
+      </Box>
+      <Box style={{ padding: '12px 14px', background: '#E8EFF8' }}>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 'bold', color: '#D9534F' }}>约束：</span>单轮最多 3 步；已追问一次不得追问第二层；最后一题禁止换题——保证面试一定收得了尾。
+        </Text>
+      </Box>
+    </Box>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 670, left: 60, width: '1160px', flexDirection: 'row', justifyContent: 'space-between' }}>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>面镜 MockMirror · AI 模拟面试与能力提升软件</Text>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>07 / 20</Text>
+  </Box>
+</Slide>

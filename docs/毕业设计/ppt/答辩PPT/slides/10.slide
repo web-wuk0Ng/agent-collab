@@ -1,0 +1,88 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#FFFFFF', padding: 0, fontFamily: 'Microsoft YaHei' }}>
+  <Box style={{ position: 'absolute', top: 60, left: 60, width: '1160px', height: '64px', background: '#1E4FA8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FFFFFF' }}>创新四：以 MCP 协议对外开放面试能力</Text>
+    <Text style={{ fontSize: 16, color: '#C7D8F5' }}>03 · MCP</Text>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 148, left: 60, width: '1160px', flexDirection: 'row', gap: 24 }}>
+    <Box style={{ width: '550px', flexDirection: 'column', gap: 12 }}>
+      <Text style={{ fontSize: 21, fontWeight: 'bold', color: '#1E4FA8' }}>对外暴露 9 个工具</Text>
+      <Box style={{ flexDirection: 'row', gap: 10 }}>
+        <Box style={{ width: '268px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230' }}>list_positions 岗位列表</Text>
+        </Box>
+        <Box style={{ width: '268px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230' }}>start_interview 开始面试</Text>
+        </Box>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 10 }}>
+        <Box style={{ width: '268px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230' }}>submit_answer 提交作答</Text>
+        </Box>
+        <Box style={{ width: '268px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230' }}>finish_interview 结束出报告</Text>
+        </Box>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 10 }}>
+        <Box style={{ width: '268px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230' }}>analyze_answer 单条批改</Text>
+        </Box>
+        <Box style={{ width: '268px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230' }}>get_report 回读报告</Text>
+        </Box>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 10 }}>
+        <Box style={{ width: '268px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230' }}>get_history 历史记录</Text>
+        </Box>
+        <Box style={{ width: '268px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230' }}>search_bank 题库检索</Text>
+        </Box>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 10 }}>
+        <Box style={{ width: '268px', padding: '10px 12px', background: '#F7F9FC', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230' }}>knowledge_lookup 知识查询</Text>
+        </Box>
+        <Box style={{ width: '268px', padding: '10px 12px', background: '#E8EFF8', border: '1px solid #D6DCE5' }}>
+          <Text style={{ fontSize: 15, color: '#1A2230' }}>另有 3 类资源 + 2 个提示词模板</Text>
+        </Box>
+      </Box>
+    </Box>
+
+    <Box style={{ width: '1px', background: '#D6DCE5' }} />
+
+    <Box style={{ width: '550px', flexDirection: 'column', gap: 14 }}>
+      <Text style={{ fontSize: 21, fontWeight: 'bold', color: '#1E4FA8' }}>外部 AI 工具的调用链</Text>
+      <Box style={{ padding: '14px 16px', background: '#F7F9FC', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.55 }}>
+          使用者对任意支持 MCP 的 AI 工具说一句「用 MockMirror 帮我面一场 Java 后端」，工具会自行完成：
+        </Text>
+        <Text style={{ fontSize: 16, color: '#1E4FA8', lineHeight: 1.55 }}>
+          list_positions → start_interview → submit_answer × N → finish_interview
+        </Text>
+        <Text style={{ fontSize: 16, color: '#4A5568', lineHeight: 1.55 }}>最后把评估报告直接交回给使用者。</Text>
+      </Box>
+
+      <Box style={{ padding: '14px 16px', background: '#1A2230', flexDirection: 'column', gap: 6 }}>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>配置示例</Text>
+        <Text style={{ fontSize: 15, color: '#FFFFFF', lineHeight: 1.6 }}>
+          "mcpServers": {"{"}<br />
+          &nbsp;&nbsp;"mockmirror": {"{"} "command": "node",<br />
+          &nbsp;&nbsp;&nbsp;&nbsp;"args": ["mcp/mockmirror-mcp.js"] {"}"}<br />
+          {"}"}
+        </Text>
+      </Box>
+
+      <Box style={{ padding: '12px 16px', background: '#E8EFF8' }}>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 'bold' }}>单一写入方原则：</span>写状态的操作统一转发本机服务，只读能力直读文件——即使主服务未启动也能查询题库。
+        </Text>
+      </Box>
+    </Box>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 670, left: 60, width: '1160px', flexDirection: 'row', justifyContent: 'space-between' }}>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>面镜 MockMirror · AI 模拟面试与能力提升软件</Text>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>10 / 20</Text>
+  </Box>
+</Slide>

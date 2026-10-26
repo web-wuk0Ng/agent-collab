@@ -1,0 +1,65 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#FFFFFF', padding: 0, fontFamily: 'Microsoft YaHei' }}>
+  <Box style={{ position: 'absolute', top: 60, left: 60, width: '1160px', height: '64px', background: '#1E4FA8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FFFFFF' }}>创新三：四个专职 Agent 的分工与协作</Text>
+    <Text style={{ fontSize: 16, color: '#C7D8F5' }}>03 · Multi-Agent</Text>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 148, left: 60, width: '1160px', flexDirection: 'column', gap: 18 }}>
+    <Box style={{ flexDirection: 'row', gap: 16, alignItems: 'stretch' }}>
+      <Box style={{ width: '242px', padding: '14px', background: '#1E4FA8', flexDirection: 'column', gap: 6, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#FFFFFF' }}>面试进行中</Text>
+        <Text style={{ fontSize: 15, color: '#C7D8F5', lineHeight: 1.5 }}>面试官 Agent 主持对话，并把观察写入共享记忆</Text>
+      </Box>
+      <Box style={{ width: '40px', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 24, color: '#8B97A8' }}>→</Text>
+      </Box>
+      <Box style={{ width: '242px', padding: '14px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 6, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#1E4FA8' }}>面试结束</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>规则引擎先产出初版评分（多维度）</Text>
+      </Box>
+      <Box style={{ width: '40px', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 24, color: '#8B97A8' }}>→</Text>
+      </Box>
+      <Box style={{ width: '242px', padding: '14px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 6, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#1E4FA8' }}>双 Agent 并行</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>评估官复核 + 陪练官出计划，同时执行</Text>
+      </Box>
+      <Box style={{ width: '40px', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 24, color: '#8B97A8' }}>→</Text>
+      </Box>
+      <Box style={{ width: '212px', padding: '14px', background: '#E8EFF8', flexDirection: 'column', gap: 6, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#1E4FA8' }}>合并出报告</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>加减分限幅 ±15 后重算总分</Text>
+      </Box>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', gap: 20 }}>
+      <Box style={{ width: '566px', padding: '16px 18px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 10 }}>
+        <Text style={{ fontSize: 21, fontWeight: 'bold', color: '#1E4FA8' }}>评估官产出</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>· agentVerdict：整体评价与是否建议通过</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>· agentPerQuestion：逐题「该怎么答」的正确答案要点</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>· agentHighlights / agentGaps：亮点与短板抽取</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>· 先调用统计工具读数据，再下结论——不凭空打分</Text>
+      </Box>
+      <Box style={{ width: '566px', padding: '16px 18px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 10 }}>
+        <Text style={{ fontSize: 21, fontWeight: 'bold', color: '#1E4FA8' }}>陪练官产出</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>· coachPlan：3~7 天的具体练习安排</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>· 针对性练习题，且回避本场已问过的题目</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>· 答题方法建议：结论—原理—场景的三段式表达</Text>
+        <Text style={{ fontSize: 16, color: '#1A2230', lineHeight: 1.5 }}>· 与评估官并行执行，缩短出报告等待时间</Text>
+      </Box>
+    </Box>
+
+    <Box style={{ padding: '14px 18px', background: '#E8EFF8' }}>
+      <Text style={{ fontSize: 17, color: '#1A2230', lineHeight: 1.5 }}>
+        <span style={{ fontWeight: 'bold', color: '#D9534F' }}>质量保证：</span>
+        Agent 产出需通过结果校验（如禁止「待核对数据后给出」这类占位结论），校验不通过自动重试一次；仍不合格则保留规则引擎的初版报告，绝不把空话交给用户。
+      </Text>
+    </Box>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 670, left: 60, width: '1160px', flexDirection: 'row', justifyContent: 'space-between' }}>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>面镜 MockMirror · AI 模拟面试与能力提升软件</Text>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>09 / 20</Text>
+  </Box>
+</Slide>

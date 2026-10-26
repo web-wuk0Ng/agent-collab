@@ -1,0 +1,55 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#FFFFFF', padding: 0, fontFamily: 'Microsoft YaHei' }}>
+  <Box style={{ width: '1280px', height: '720px', flexDirection: 'column', padding: '60px' }}>
+    <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#1E4FA8' }}>目录</Text>
+    <Box style={{ width: '1160px', height: '2px', background: '#1E4FA8', marginTop: 14 }} />
+    <Box style={{ flexDirection: 'row', marginTop: 40, gap: 32, flex: 1 }}>
+      <Box style={{ width: '530px', flexDirection: 'column', gap: 22 }}>
+        <Box style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+          <Text style={{ fontSize: 30, fontWeight: 'bold', color: '#1E4FA8', width: '60px' }}>01</Text>
+          <Box style={{ flexDirection: 'column', gap: 4 }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A2230' }}>研究背景与问题</Text>
+            <Text style={{ fontSize: 16, color: '#8B97A8' }}>Background and Problem</Text>
+          </Box>
+        </Box>
+        <Box style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+          <Text style={{ fontSize: 30, fontWeight: 'bold', color: '#1E4FA8', width: '60px' }}>02</Text>
+          <Box style={{ flexDirection: 'column', gap: 4 }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A2230' }}>系统总体设计</Text>
+            <Text style={{ fontSize: 16, color: '#8B97A8' }}>System Design</Text>
+          </Box>
+        </Box>
+        <Box style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+          <Text style={{ fontSize: 30, fontWeight: 'bold', color: '#1E4FA8', width: '60px' }}>03</Text>
+          <Box style={{ flexDirection: 'column', gap: 4 }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A2230' }}>Agent 决策机制</Text>
+            <Text style={{ fontSize: 16, color: '#8B97A8' }}>Agent Decision Loop</Text>
+          </Box>
+        </Box>
+      </Box>
+      <Box style={{ width: '1px', background: '#D6DCE5' }} />
+      <Box style={{ width: '530px', flexDirection: 'column', gap: 22 }}>
+        <Box style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+          <Text style={{ fontSize: 30, fontWeight: 'bold', color: '#1E4FA8', width: '60px' }}>04</Text>
+          <Box style={{ flexDirection: 'column', gap: 4 }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A2230' }}>关键技术与实现</Text>
+            <Text style={{ fontSize: 16, color: '#8B97A8' }}>Key Techniques</Text>
+          </Box>
+        </Box>
+        <Box style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+          <Text style={{ fontSize: 30, fontWeight: 'bold', color: '#1E4FA8', width: '60px' }}>05</Text>
+          <Box style={{ flexDirection: 'column', gap: 4 }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A2230' }}>测试验证与团队分工</Text>
+            <Text style={{ fontSize: 16, color: '#8B97A8' }}>Evaluation and Teamwork</Text>
+          </Box>
+        </Box>
+        <Box style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+          <Text style={{ fontSize: 30, fontWeight: 'bold', color: '#1E4FA8', width: '60px' }}>06</Text>
+          <Box style={{ flexDirection: 'column', gap: 4 }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A2230' }}>总结与展望</Text>
+            <Text style={{ fontSize: 16, color: '#8B97A8' }}>Conclusion</Text>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  </Box>
+</Slide>

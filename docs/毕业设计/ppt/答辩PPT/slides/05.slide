@@ -1,0 +1,64 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#FFFFFF', padding: 0, fontFamily: 'Microsoft YaHei' }}>
+  <Box style={{ position: 'absolute', top: 60, left: 60, width: '1160px', height: '64px', background: '#1E4FA8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FFFFFF' }}>系统功能架构</Text>
+    <Text style={{ fontSize: 16, color: '#C7D8F5' }}>02 · Functions</Text>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 148, left: 60, width: '1160px', flexDirection: 'column', gap: 20 }}>
+    <Box style={{ flexDirection: 'row', gap: 20 }}>
+      <Box style={{ width: '275px', padding: '16px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E4FA8' }}>F1 用户与会话</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>登录鉴权、面试生命周期管理、历史记录与回放</Text>
+      </Box>
+      <Box style={{ width: '275px', padding: '16px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E4FA8' }}>F2 岗位与题库</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>3 岗位 159 题，含考察点与回答思路，随机组卷</Text>
+      </Box>
+      <Box style={{ width: '275px', padding: '16px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E4FA8' }}>F3 语音交互</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>设备选择、离线流式识别、说完自动提交、可打断</Text>
+      </Box>
+      <Box style={{ width: '275px', padding: '16px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E4FA8' }}>F4 面试官 Agent</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>工具调用与自主决策：追问、深挖、换题、收尾</Text>
+      </Box>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', gap: 20 }}>
+      <Box style={{ width: '275px', padding: '16px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E4FA8' }}>F5 多 Agent 协作</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>评估官复核打分、陪练官出计划、出题官按 JD 出题</Text>
+      </Box>
+      <Box style={{ width: '275px', padding: '16px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E4FA8' }}>F6 行为观察</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>摄像头本地视觉分析，统计抬头率与紧张度</Text>
+      </Box>
+      <Box style={{ width: '275px', padding: '16px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E4FA8' }}>F7 评估与提升</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>多维度报告、全程回放、跨场次能力成长曲线</Text>
+      </Box>
+      <Box style={{ width: '275px', padding: '16px', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E4FA8' }}>F8 / F9 管理与开放</Text>
+        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>管理后台统计审计；MCP 协议对外开放面试能力</Text>
+      </Box>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', gap: 20, marginTop: 4 }}>
+      <Box style={{ width: '566px', padding: '16px 18px', background: '#E8EFF8', flexDirection: 'column', gap: 6 }}>
+        <Text style={{ fontSize: 17, color: '#1A2230', lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 'bold' }}>全语音闭环：</span>选择岗位 → 设备检测 → 开口作答 → 自动提交 → Agent 决策 → 出报告，全程无需键盘输入。
+        </Text>
+      </Box>
+      <Box style={{ width: '566px', padding: '16px 18px', background: '#F7F9FC', border: '1px solid #D6DCE5', flexDirection: 'column', gap: 6 }}>
+        <Text style={{ fontSize: 17, color: '#1A2230', lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 'bold' }}>能力闭环：</span>逐题给出「该怎么答」，再由陪练官生成一周练习计划，形成可持续的能力提升路径。
+        </Text>
+      </Box>
+    </Box>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 670, left: 60, width: '1160px', flexDirection: 'row', justifyContent: 'space-between' }}>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>面镜 MockMirror · AI 模拟面试与能力提升软件</Text>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>05 / 20</Text>
+  </Box>
+</Slide>

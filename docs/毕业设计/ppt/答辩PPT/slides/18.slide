@@ -1,0 +1,62 @@
+<Slide style={{ width: '1280px', height: '720px', background: '#FFFFFF', padding: 0, fontFamily: 'Microsoft YaHei' }}>
+  <Box style={{ position: 'absolute', top: 60, left: 60, width: '1160px', height: '64px', background: '#1E4FA8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FFFFFF' }}>团队分工与交付对应关系</Text>
+    <Text style={{ fontSize: 16, color: '#C7D8F5' }}>05 · Teamwork</Text>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 148, left: 60, width: '1160px', flexDirection: 'column', gap: 10 }}>
+    <Box style={{ flexDirection: 'row', height: '44px', background: '#1E4FA8', alignItems: 'center', padding: '0 16px' }}>
+      <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#FFFFFF', width: '150px' }}>成员</Text>
+      <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#FFFFFF', width: '250px' }}>承担方向</Text>
+      <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#FFFFFF', width: '560px' }}>主要交付物</Text>
+      <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#FFFFFF', width: '184px' }}>工作量</Text>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', minHeight: '58px', borderBottom: '1px solid #E5E7EB', alignItems: 'center', padding: '0 16px' }}>
+      <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1A2230', width: '150px' }}>王涛（队长）</Text>
+      <Text style={{ fontSize: 15, color: '#4A5568', width: '250px', lineHeight: 1.5 }}>架构 · Agent 运行时 · 开放层</Text>
+      <Text style={{ fontSize: 15, color: '#1A2230', width: '560px', lineHeight: 1.5 }}>总体架构与零依赖策略；面试官 Agent（254 行）、Agent 团队（276 行）、MCP Server（534 行）、面试状态机（273 行）；文档统筹</Text>
+      <Text style={{ fontSize: 16, color: '#1A2230', width: '184px' }}>约 30%</Text>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', minHeight: '58px', borderBottom: '1px solid #E5E7EB', alignItems: 'center', padding: '0 16px' }}>
+      <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1A2230', width: '150px' }}>谭绍卿</Text>
+      <Text style={{ fontSize: 15, color: '#4A5568', width: '250px', lineHeight: 1.5 }}>语音交互全链路</Text>
+      <Text style={{ fontSize: 15, color: '#1A2230', width: '560px', lineHeight: 1.5 }}>本地识别引擎（131 行）与浏览器采集（162 行）、跨平台安装器（170 行）、端点检测与结束词、打断与设备切换、语音拟人化</Text>
+      <Text style={{ fontSize: 16, color: '#1A2230', width: '184px' }}>约 22%</Text>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', minHeight: '58px', borderBottom: '1px solid #E5E7EB', alignItems: 'center', padding: '0 16px' }}>
+      <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1A2230', width: '150px' }}>覃佳维</Text>
+      <Text style={{ fontSize: 15, color: '#4A5568', width: '250px', lineHeight: 1.5 }}>前端交互与视觉</Text>
+      <Text style={{ fontSize: 15, color: '#1A2230', width: '560px', lineHeight: 1.5 }}>页面结构（486 行）与样式（664 行）、主交互（2143 行）、Agent 工作台、报告页与全程回放、本地视觉分析（115 行）</Text>
+      <Text style={{ fontSize: 16, color: '#1A2230', width: '184px' }}>约 20%</Text>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', minHeight: '58px', borderBottom: '1px solid #E5E7EB', alignItems: 'center', padding: '0 16px' }}>
+      <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1A2230', width: '150px' }}>夏艺凡</Text>
+      <Text style={{ fontSize: 15, color: '#4A5568', width: '250px', lineHeight: 1.5 }}>题库与知识库</Text>
+      <Text style={{ fontSize: 15, color: '#1A2230', width: '560px', lineHeight: 1.5 }}>3 岗位 159 题与扩充脚本（331 行）、组卷算法（126 行）、岗位知识库与 BM25 检索（79 行）、术语归一（170 行）</Text>
+      <Text style={{ fontSize: 16, color: '#1A2230', width: '184px' }}>约 16%</Text>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', minHeight: '58px', borderBottom: '1px solid #E5E7EB', alignItems: 'center', padding: '0 16px' }}>
+      <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1A2230', width: '150px' }}>江帆帆</Text>
+      <Text style={{ fontSize: 15, color: '#4A5568', width: '250px', lineHeight: 1.5 }}>数据 · 测试 · 部署</Text>
+      <Text style={{ fontSize: 15, color: '#1A2230', width: '560px', lineHeight: 1.5 }}>存储层（316 行）与原子写、管理后台、成长曲线；浏览器自动化测试 4 组与 AI 安全实验、一键启动脚本与全新目录实测</Text>
+      <Text style={{ fontSize: 16, color: '#1A2230', width: '184px' }}>约 12%</Text>
+    </Box>
+
+    <Box style={{ padding: '14px 18px', background: '#E8EFF8', marginTop: 8 }}>
+      <Text style={{ fontSize: 17, color: '#1A2230', lineHeight: 1.5 }}>
+        <span style={{ fontWeight: 'bold' }}>协作方式：</span>
+        分支保护 + Pull Request 评审（至少 1 人通过方可合并），提交信息规范为「类型: 说明」；每次 PR 自动执行两端测试。全程未发生主干被改坏的情况。
+      </Text>
+    </Box>
+  </Box>
+
+  <Box style={{ position: 'absolute', top: 670, left: 60, width: '1160px', flexDirection: 'row', justifyContent: 'space-between' }}>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>面镜 MockMirror · AI 模拟面试与能力提升软件</Text>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>18 / 20</Text>
+  </Box>
+</Slide>
