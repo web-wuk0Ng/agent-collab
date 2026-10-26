@@ -193,6 +193,15 @@ const routes = {
     return result;
   },
 
+  // 边听边准备：候选人还在说时静默预生成下一步（追问 / 过渡语），正式提交时可复用
+  'POST /api/interview/prefetch': async (p) => {
+    const s = db.getSession(p.sessionId);
+    if (!s || s.status !== 'ongoing') throw new Error('面试会话不存在或已结束');
+    const r = await interview.prefetchNext(s, p);
+    db.saveSession(s);
+    return r;
+  },
+
   // 智能回合判断：候选人语音停顿后，面试官判断"说完了还是卡住了"（不写入会话数据）
   // 本地离线语音识别（Chrome 可用，语音数据不出本机）
   'GET /api/asr/status': () => ({ available: asr.available() }),

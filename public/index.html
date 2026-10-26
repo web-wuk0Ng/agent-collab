@@ -166,7 +166,7 @@
         <div id="pj-voice-result" class="pj-voice-result hidden"></div>
         <button id="pj-join" class="pj-cta" onclick="joinMeeting()">进入面试间</button>
         <button class="btn ghost full" style="margin-top:8px" onclick="leavePrejoin()">返回岗位选择</button>
-        <p class="pj-privacy">🔒 画面与音频仅在本机处理，不上传、不录制</p>
+        <p class="pj-privacy">🔒 面试内容仅用于本次评估</p>
       </div>
     </div>
   </section>
@@ -199,7 +199,7 @@
             <video id="iv-video" class="iv-photo hidden" src="assets/interviewer-talk.mp4" loop muted playsinline></video>
             <i class="ring r1"></i><i class="ring r2"></i>
           </div>
-          <div class="ai-name">陈铭 · 资深面试官<small>AI 数字人 · 已接入岗位知识库</small></div>
+          <div class="ai-name">苏晴 · 资深面试官<small>AI 数字人 · 已接入岗位知识库</small></div>
           <div class="ai-wave"><i></i><i></i><i></i><i></i><i></i></div>
           <div class="tile-tag" id="ai-badge">正在提问</div>
           <div class="caption hidden" id="ai-caption"></div>
@@ -284,6 +284,7 @@
         <button class="ctrl" id="ctrl-mute" onclick="toggleMute()" title="静音"><i>🎙</i><span>静音</span></button>
         <button class="ctrl" id="btn-cam" onclick="toggleCamera()" title="开关摄像头"><i>🎥</i><span>摄像头</span></button>
         <button class="ctrl" id="ctrl-view" onclick="toggleViewMode()" title="切换视图"><i>🔳</i><span>视图</span></button>
+        <button class="ctrl" id="ctrl-stop" onclick="onSpaceKey()" title="空格键：让面试官停下 / 我说完了提交"><i>⏹</i><span>停/提交</span></button>
         <button class="ctrl" id="ctrl-chat" onclick="mtgSide('chat')" title="面试对话"><i>💬</i><span>对话</span></button>
         <button class="ctrl" id="ctrl-stats" onclick="mtgSide('stats')" title="临场分析"><i>📊</i><span>分析</span></button>
         <button class="ctrl" id="ctrl-dev" onclick="toggleDevPanel()" title="麦克风设备"><i>🎚</i><span>设备</span></button>
@@ -310,7 +311,7 @@
         <label for="mtg-asr-select">识别引擎</label>
         <select id="mtg-asr-select" onchange="setAsrPrefer(this.value)">
           <option value="auto">自动（推荐）</option>
-          <option value="local">本地离线（语音不出本机）</option>
+          <option value="local">内置识别引擎（离线可用）</option>
           <option value="webspeech">浏览器在线（仅 Edge 可用）</option>
         </select>
       </div>
