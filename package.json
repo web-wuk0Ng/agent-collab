@@ -4,7 +4,10 @@
   "description": "面镜 MockMirror —— AI 模拟面试与能力提升软件（A11 锐捷网络赛题）",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "setup": "node scripts/setup-asr.js",
+    "setup:skip": "node scripts/setup-asr.js --skip",
+    "test": "node test/ai-safety.js"
   },
   "engines": {
     "node": ">=18"

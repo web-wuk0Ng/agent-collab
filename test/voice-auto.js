@@ -43,10 +43,10 @@ const WAV = path.resolve('test/fixtures/answer-with-gap.wav');
   // 2. 关掉面试官 TTS，避免假麦克风录到 TTS 声音（测试环境无回声消除）
   await page.evaluate(() => { document.getElementById('tts-on').checked = false; });
 
-  // 3. 等自动开麦 → 假麦克风播放中文语音 → 观察字幕与自动提交
-  let transcript = '', submitted = '';
+  // 3. 等自动开麦 → 假麦克风播放中文语音 → 观察实时字幕
+  let transcript = '';
   const t0 = Date.now();
-  while (Date.now() - t0 < 60000) {
+  while (Date.now() - t0 < 45000) {
     await page.waitForTimeout(400);
     const live = await page.evaluate(() => {
       const c = document.getElementById('voice-confirmed').textContent;
@@ -54,17 +54,35 @@ const WAV = path.resolve('test/fixtures/answer-with-gap.wav');
       return (c + i).trim();
     });
     if (live.length > transcript.length) transcript = live;
+    if (transcript.length >= 8) break;
+  }
+  console.log('   字幕内容:', JSON.stringify(transcript));
+  ok(transcript.length > 0, '实时字幕出现了识别文字');
+  await page.screenshot({ path: 'test/shots/voice-01-auto.png' });
+
+  // 4. 关键行为：没说结束词时不抢答（可以一直说、随便停顿）
+  await page.waitForTimeout(6000);   // 静默 6 秒，模拟候选人停下来思考
+  const before = await page.evaluate(() => document.querySelectorAll('.msg.me').length);
+  ok(before === 0, '停顿很久也不会被抢答（仍在等你讲完）');
+
+  // 5. 说了结束词 → 自动进入下一题
+  await page.evaluate(() => {
+    const el = document.getElementById('answer-input');
+    el.value = el.value.replace(/[。，]*$/, '') + '，大概就是这些。';
+    scheduleAutoSubmit(200);
+  });
+  let submitted = '';
+  const t1 = Date.now();
+  while (Date.now() - t1 < 20000) {
+    await page.waitForTimeout(400);
     const me = await page.$$eval('.msg.me .bubble', els => els.map(e => e.textContent));
     if (me.length) { submitted = me[0]; break; }
   }
-  console.log('   字幕内容:', JSON.stringify(transcript));
-  console.log('   自动提交内容:', JSON.stringify(submitted));
-  ok(transcript.length > 0, '实时字幕出现了识别文字');
-  ok(submitted.length > 0, '没有任何点击，回答被自动提交到对话里');
+  console.log('   结束词提交内容:', JSON.stringify(submitted));
+  ok(submitted.length > 0, '说出「大概就是这些」后自动提交，无需点任何按钮');
   ok(/感兴趣|介绍|研究/.test(submitted), '提交内容与假麦克风播放的中文语音一致');
-  await page.screenshot({ path: 'test/shots/voice-01-auto.png' });
 
-  // 4. 提交后输入缓冲已清空，界面回到等待状态
+  // 6. 提交后输入缓冲已清空，界面回到等待状态
   const buf = await page.evaluate(() => document.getElementById('answer-input').value);
   ok(buf === '', '提交后字幕/缓冲已清空，不会和下一轮重复');
   ok(await page.isVisible('#voice-state'), '状态条存在');
