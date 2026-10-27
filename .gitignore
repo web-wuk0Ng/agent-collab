@@ -50,3 +50,6 @@ vendor/asr-model/
 
 # slidep 工程缓存
 .slidep/
+
+# Office 打开时的临时锁文件
+~$*
