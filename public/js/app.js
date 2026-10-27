@@ -794,22 +794,12 @@ function setCurrentQ(text) {
   renderQBrief(state.session && state.session.currentQ);
 }
 
-/** 本题押题卡：考察点 + 回答思路（牛客押题风，题目切换即更新） */
+/** 真面试场景：不展示考察点/回答思路（服务端也不再下发），题干只显示在 current-q */
 function renderQBrief(q) {
   const box = $('q-brief');
   if (!box) return;
-  if (!q || (!q.points || !q.points.length) && !q.hint) {
-    box.classList.add('hidden');
-    return;
-  }
-  box.classList.remove('hidden');
-  const typeMap = { tech: '技术题', project: '项目题', scenario: '场景题', behavior: '行为题' };
-  box.innerHTML =
-    `<div class="qb-head"><b>📋 本题押题卡</b><span class="tag">${typeMap[q.type] || q.type || ''}</span></div>` +
-    (q.points && q.points.length
-      ? `<div class="qb-sec"><label>考察点</label><div class="qb-points">${q.points.map(p => `<i>${esc(p)}</i>`).join('')}</div></div>` : '') +
-    (q.hint ? `<div class="qb-sec"><label>回答思路</label><p>${esc(q.hint)}</p></div>` : '') +
-    `<p class="qb-tip">💡 思考时可参考，作答请用自己的话；卡片会在你作答时自动收起。</p>`;
+  box.classList.add('hidden');
+  box.innerHTML = '';
 }
 
 function addMsg(kind, text, speak = false) {
