@@ -7,7 +7,6 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
-const crypto = require('crypto');
 
 const db = require('./lib/db');
 const bank = require('./lib/bank');
@@ -51,20 +50,6 @@ setInterval(() => {
   for (const [k, v] of buckets) if (now - v.first > 30 * 60 * 1000) buckets.delete(k);
 }, 10 * 60 * 1000).unref();
 
-/** 管理员会话：登录成功签发随机 token（内存态，2 小时过期），替代明文口令重传 */
-const adminSessions = new Map();   // token -> expiresAt
-const ADMIN_TTL = 2 * 60 * 60 * 1000;
-function issueAdminToken() {
-  const t = crypto.randomBytes(24).toString('hex');
-  adminSessions.set(t, Date.now() + ADMIN_TTL);
-  return t;
-}
-function requireAdmin(req) {
-  const t = String(req.headers['x-admin-token'] || '');
-  const exp = adminSessions.get(t);
-  if (!exp || exp < Date.now()) throw apiError('需要管理员权限，请先在管理中心登录', 401, 'ADMIN_REQUIRED');
-}
-
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -106,6 +91,13 @@ function readBody(req) {
 const routes = {
   // 元信息：岗位列表与题库规模
   'GET /api/positions': () => ({ positions: bank.positionsMeta() }),
+  'GET /api/bank/template': (p, query) => bank.importTemplate(query.position),
+  'POST /api/bank/preview-import': (p) => bank.importQuestions(p, true),
+  'POST /api/bank/import': (p) => {
+    const result = bank.importQuestions(p, false);
+    rag.init();
+    return result;
+  },
 
   // 岗位押题预览（首页右侧面板）：只下发题干/类型/回答思路，不下发评分要点
   'GET /api/bank/preview': (p, query) => {
@@ -184,6 +176,13 @@ const routes = {
     const greeting = await llm.interviewerGreeting(p.position, firstQ, p.rounds || 6);
     db.saveSession(session);
     return { sessionId: session.id, greeting, question: { id: firstQ.id, type: firstQ.type, text: firstQ.text, index: 0 }, planSize: plan.length, jdApplied };
+  },
+
+  // 口头指令「换简单一点 / 换难一点」：重述当前题的难度，不消耗题序
+  'POST /api/interview/coach': async (p) => {
+    const s = db.getSession(p.sessionId);
+    if (!s || s.status !== 'ongoing') throw new Error('面试会话不存在或已结束');
+    return interview.coach(s, { qIndex: p.qIndex | 0, kind: p.kind === 'harder' ? 'harder' : 'easier' });
   },
 
   // 提交一轮回答（含追问），返回 AI 面试官下一句话
@@ -275,34 +274,7 @@ const routes = {
   'GET /api/history': (p, query) => ({ list: db.historyOf(query.userId) }),
   'GET /api/growth': (p, query) => ({ curve: db.growthOf(query.userId) }),
 
-  /* ---------- 管理中心（企业/教师视角） ---------- */
-  'POST /api/admin/login': (p, q, req) => {
-    if (!rateLimit(`admin:${req.socket.remoteAddress}`, 5, 10 * 60 * 1000)) {
-      throw apiError('尝试次数过多，请 10 分钟后再试', 429, 'RATE_LIMITED');
-    }
-    if (!db.verifyAdminPass(p.passcode)) {
-      db.audit('admin.login.fail', req.socket.remoteAddress);
-      throw apiError('口令不正确', 401, 'ADMIN_BAD_PASS');
-    }
-    const token = issueAdminToken();
-    db.audit('admin.login.ok', req.socket.remoteAddress);
-    return { ok: true, token };
-  },
-  'GET /api/admin/stats': (p, q, req) => { requireAdmin(req); return db.adminStats(); },
-  'GET /api/admin/students': (p, q, req) => { requireAdmin(req); return { list: db.adminStudents() }; },
-  'GET /api/admin/audits': (p, q, req) => { requireAdmin(req); return { list: db.adminAudits() }; },
-  'GET /api/admin/export': (p, q, req) => { requireAdmin(req); return { csv: db.adminExportCsv() }; },
-  'GET /api/admin/bank': (p, q, req) => {
-    requireAdmin(req);
-    const positions = bank.positionsMeta();
-    const detail = q.position ? bank.rawBank(q.position) : null;
-    return { positions, detail };
-  },
-  'POST /api/admin/bank/import': (p, q, req) => { requireAdmin(req); return bank.importCustom(p); },
-  'POST /api/admin/bank/delete': (p, q, req) => { requireAdmin(req); return bank.deleteCustom(p.position); },
-
-  /* ---------- 多 Agent 团队（面试官 / 评估官 / 陪练官 / 出题官） ---------- */
-  // 团队档案：前端「Agent 工作台」展示各角色职责与最近一次运行情况
+  // Agent 角色与个人练习工具
   'GET /api/agent/roles': (p, query) => ({
     roles: [
       { id: 'interviewer', name: '面试官 Agent', duty: '主持对话：边听边决策（追问 / 深挖 / 换知识点 / 下一题）', tools: Object.keys(require('./lib/agent').TOOLS) },
@@ -325,7 +297,7 @@ const routes = {
     if (!r.ok || !r.final) throw new Error('批改失败，请重试');
     return { ...r.final, role: r.roleName, thought: r.thought, trace: r.trace };
   },
-  // 出题官：按知识点 / JD 生成新题（草稿，可在管理中心导入题库）
+  // 出题官：按知识点 / JD 生成新题（个人练习草稿）
   'POST /api/agent/write': async (p) => {
     const topic = String(p.topic || '').trim().slice(0, 100);
     const jd = String(p.jd || '').trim().slice(0, 2000);
@@ -343,15 +315,62 @@ const routes = {
   'GET /api/health': () => ({ status: 'ok', name: 'MockMirror', ai: llm.publicConfig(), db: db.stats() })
 };
 
+/** 流式（SSE）接口：与普通接口区分，返回 Socket 流而不是一次性 JSON */
+const streamRoutes = {
+  // 提交回答并边生成边朗读：事件 delta(话) → thought(思考) → done(完整结果)
+  'POST /api/interview/answer-stream': async (p, emit) => {
+    const s = db.getSession(p.sessionId);
+    if (!s || s.status !== 'ongoing') throw new Error('面试会话不存在或已结束');
+    // 每个字一到就成了 SSE 事件推给浏览器；前端拿到就追加到气泡并开始念，
+    // 不再等整句话生成完 —— 这是"边想边说"的关键链路。
+    const result = await interview.handleAnswer(s, p, chunk => emit({ type: 'delta', text: chunk }));
+    db.saveSession(s);
+    return result;
+  },
+
+  // 口头指令「解释这道题」：通俗讲解当前题，不消耗题序
+  'POST /api/interview/explain': async (p) => {
+    const s = db.getSession(p.sessionId);
+    if (!s || s.status !== 'ongoing') throw new Error('面试会话不存在或已结束');
+    return interview.explainCurrent(s, { qIndex: p.qIndex | 0 });
+  }
+};
+
 const server = http.createServer(async (req, res) => {
   const parsed = url.parse(req.url, true);
   const pathname = decodeURIComponent(parsed.pathname);
+
+  // SSE 流式接口：面试官边生成边把话说出来（不等全文），追求真人通话的流畅感
+  if (streamRoutes[`${req.method} ${pathname}`]) {
+    const allow = corsOrigin(req.headers.origin);
+    if (allow) res.setHeader('Access-Control-Allow-Origin', allow);
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no'
+    });
+    const sendEvent = (obj) => {
+      try { res.write(`data: ${JSON.stringify(obj)}\n\n`); } catch { /* 客户端已断开 */ }
+    };
+    try {
+      const body = req.method === 'POST' ? await readBody(req) : {};
+      const out = await streamRoutes[`${req.method} ${pathname}`](body, sendEvent);
+      sendEvent({ type: 'done', payload: out });
+    } catch (e) {
+      console.error('[SSE]', pathname, e.message);
+      sendEvent({ type: 'error', message: e.message || '请求失败' });
+    } finally {
+      try { res.end(); } catch {}
+    }
+    return;
+  }
 
   // CORS（仅同源白名单：本机页面；第三方站点不允许跨源调用本地服务）
   const allowOrigin = corsOrigin(req.headers.origin);
   if (allowOrigin) res.setHeader('Access-Control-Allow-Origin', allowOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,X-Admin-Token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
   // API

@@ -9,16 +9,6 @@ const API = (path, body) => fetch(path, body ? {
   if (!r.ok) { const e = new Error(j.error || '请求失败'); e.code = j.code || ''; e.status = r.status; throw e; }
   return j;
 });
-// 管理员 API：附带登录时签发的会话 token（口令不再随请求重传）
-const AAPI = (path, body) => fetch(path, {
-  method: body ? 'POST' : 'GET',
-  headers: { 'Content-Type': 'application/json', 'x-admin-token': sessionStorage.adminToken || '' },
-  body: body ? JSON.stringify(body) : undefined
-}).then(async r => {
-  const j = await r.json();
-  if (!r.ok) { const e = new Error(j.error || '请求失败'); e.code = j.code || ''; e.status = r.status; throw e; }
-  return j;
-});
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const state = {
@@ -32,7 +22,7 @@ const state = {
 
 /* ---------------- 视图切换 ---------------- */
 function go(view) {
-  for (const v of ['home', 'interview', 'report', 'history', 'kb', 'admin']) $('view-' + v).classList.add('hidden');
+  for (const v of ['home', 'interview', 'report', 'history', 'kb']) $('view-' + v).classList.add('hidden');
   $('view-' + view).classList.remove('hidden');
   document.querySelectorAll('.topnav a').forEach(a => a.classList.toggle('active', a.dataset.nav === view));
   if (view === 'history') renderHistory();
@@ -219,7 +209,6 @@ function toggleDevPanel() {
   if (show) {
     refreshMicDevices();
     if ($('mtg-asr-select')) $('mtg-asr-select').value = asrPrefer;
-    if ($('mtg-voice-select')) $('mtg-voice-select').value = ttsVoicePref;
     if ($('mtg-rate')) $('mtg-rate').value = String(ttsRate);
     if ($('mtg-rate-val')) $('mtg-rate-val').textContent = ttsRate.toFixed(2) + '×';
     // 音色自然度提示：没有神经网络音时给出升级路径
@@ -230,7 +219,7 @@ function toggleDevPanel() {
       hint.textContent = v
         ? (/natural|online|neural/i.test(v.name)
           ? '当前音色：' + v.name.replace(/\s*-\s*Chinese.*$/, '') + '（神经网络自然音，接近真人）'
-          : '当前音色：' + v.name.replace(/\s*-\s*Chinese.*$/, '') + '（系统传统音色，机械感略强）。想要更像真人：Windows 设置 → 时间和语言 → 语音 → 添加中文（中国）自然语音，或改用 Edge 联网后使用 Xiaoxiao/Yunxi 在线音色。')
+          : '当前音色：' + v.name.replace(/\s*-\s*Chinese.*$/, '') + '（系统传统音色，机械感略强）。想要更像真人：Windows 设置 → 时间和语言 → 语音 → 添加中文（中国）自然语音，或改用 Edge 联网后使用 Xiaoxiao 在线音色。')
         : '未检测到中文语音包，请先在系统中安装中文语音。';
     }
   }
@@ -483,7 +472,8 @@ function prejoinTestSpeaker() {
     const u = new SpeechSynthesisUtterance('你好，这里是面镜模拟面试的扬声器测试，听到声音说明设备正常。');
     u.lang = 'zh-CN'; u.rate = ttsRate || 1;
     const v = pickVoice();
-    if (v) u.voice = v;
+    if (!v) return toast('音色尚未就绪，请稍后重试');
+    u.voice = v;
     speechSynthesis.speak(u);
     setCk('spk', 'ok', '✓ 正在播放测试语音，听到了吗');
     toast('🔊 正在播放测试语音…');
@@ -597,7 +587,7 @@ async function joinMeeting() {
   renderVoice('');
   updateProgress(0, pending.planSize);
   setCurrentQ(pending.question.text);
-  addMsg('ai', pending.greeting + '\n\n' + pending.question.text, true);
+  addMsg('ai', pending.greeting || pending.question.text, true);
   startThinkCountdown(15);   // 第一题也给 15 秒思考时间
   if (pending.jdApplied) addMsg('sys', '🏢 本次面试题目已根据你粘贴的岗位 JD 由大模型定制生成');
 
@@ -742,17 +732,8 @@ function toggleMute() {
 
 /* AI 面试官说话动画 + 实时字幕 */
 function setAvatarTalking(on) {
-  const v = $('iv-video'), img = $('iv-photo-img');
-  if (!v || !img) return;
-  if (on) {
-    img.classList.add('hidden');
-    v.classList.remove('hidden');
-    v.play().catch(() => {});
-  } else {
-    v.pause();
-    v.classList.add('hidden');
-    img.classList.remove('hidden');
-  }
+  const img = $('iv-photo-img');
+  if (img) img.classList.toggle('talking', !!on);
 }
 
 function setAiSpeaking(text) {
@@ -803,6 +784,7 @@ function renderQBrief(q) {
 }
 
 function addMsg(kind, text, speak = false) {
+  if (kind === 'ai' && !state.session) return;
   const log = $('chat-log');
   const div = document.createElement('div');
   div.className = 'msg ' + kind;
@@ -814,10 +796,210 @@ function addMsg(kind, text, speak = false) {
     setMeSpeaking(false);
     setAiSpeaking(text);
     if (speak && $('tts-on').checked) speakText(text);
-    else if (state.autoFinishAfterSpeech) { state.autoFinishAfterSpeech = false; setTimeout(() => finishInterview(true), 2200); }
+    else if (state.autoFinishAfterSpeech) { state.autoFinishAfterSpeech = false; scheduleFinishInterview(2200); }
     else scheduleAutoListen(900); // 未开 TTS 时也要自动收音
   }
   return div;
+}
+
+/** 流式气泡：先占位，随后逐字追加（配合边生成边念） */
+function addMsgLive(kind) {
+  const log = $('chat-log');
+  const div = document.createElement('div');
+  div.className = 'msg ' + kind;
+  const who = kind === 'ai' ? '🧑‍💼 面试官' : kind === 'me' ? '我' : '系统';
+  div.innerHTML = `<div class="who">${who}</div><div class="bubble"></div>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return {
+    div,
+    bubble: div.querySelector('.bubble'),
+    append(text) {
+      this.bubble.textContent += text;
+      log.scrollTop = log.scrollHeight;
+      const cap = $('ai-caption');
+      if (cap) { cap.textContent = this.bubble.textContent.slice(-60); cap.classList.remove('hidden'); }
+    },
+    text() { return this.bubble.textContent; }
+  };
+}
+
+/**
+ * 口头指令（优先级最高，说出口即生效）。返回命中的指令名，未命中返回 null。
+ * 只在"整句话基本就是一条指令"时才触发，避免把正常回答里的字眼误判成指令。
+ */
+const VOICE_COMMANDS = [
+  { key: 'next',    re: /^(好的)?(那)?(我们)?(直接|就)?(来|跳到|进入|换)?下一(题|道|个)(问题)?|^(skip|next)/i },
+  { key: 'easier',  re: /^(换|来|问)?(简单|容易)(一点|一点儿的|些|的)?(题|题吧|吧)?$|换个简单一点的/i },
+  { key: 'harder',  re: /^(换|来|问)?(难|深)(一点|一点儿的|些|的)?(题|题吧|吧)?$|再难一点|深挖一点/i },
+  { key: 'explain', re: /^解释(一下|讲讲)?(这道|这个)?题|^(这题|这道题)(怎么|该怎么)(答|想)|给点提示|提示一下/i },
+  { key: 'restart', re: /^重新开始(面试|一下)?|^重来(一次|一遍)?|^清一下上下文/i },
+  { key: 'finish',  re: /^结束(这次)?面试|^就到这儿|^今天的面试到此为止|^(我们)?就到这里吧/i }
+];
+
+function detectVoiceCommand(text) {
+  const t = String(text || '').replace(/[。！？，、,.!?\s]/g, '');
+  if (!t || t.length > 14) return null;   // 正常作答通常远长于此，不会被误伤
+  const hit = VOICE_COMMANDS.find(c => c.re.test(t));
+  return hit ? hit.key : null;
+}
+
+/* ===== 流式答问（SSE）：边生成边念，追求真人通话的流畅感 ===== */
+
+/**
+ * 通用 SSE 读取：把服务端逐字推来的 delta 交给回调，最终返回完整 payload。
+ * 任何环节失败会抛错，调用方负责回退到普通一次性接口。
+ */
+async function readSSE(pathname, body, onDelta) {
+  const res = await fetch(pathname, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {})
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`流式接口 ${res.status}: ${t.slice(0, 120)}`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let pending = '', finalPayload = null;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    pending += decoder.decode(value, { stream: true });
+    const blocks = pending.split('\n\n');
+    pending = blocks.pop() || '';
+    for (const block of blocks) {
+      const line = block.split('\n').find(l => l.startsWith('data:'));
+      if (!line) continue;
+      let ev;
+      try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
+      if (ev.type === 'delta' && ev.text) onDelta && onDelta(ev.text);
+      else if (ev.type === 'done') finalPayload = ev.payload;
+      else if (ev.type === 'error') throw new Error(ev.message || '流式生成失败');
+    }
+  }
+  if (!finalPayload) throw new Error('流式未返回完整结果');
+  return finalPayload;
+}
+
+/**
+ * 提交回答走流式：第一个字到达就立刻开始念；失败自动回退到一次性接口
+ * （功能完全一致，只是少了"边生成边念"的体感，绝不影响可用性）。
+ */
+async function answerStream(payload, sess) {
+  let live = null, started = false, acc = '';
+  const ensureLive = async () => {
+    if (started) return;
+    started = true;
+    hideTyping();
+    live = addMsgLive('ai');
+    await beginStreamSpeech(sess);
+  };
+  try {
+    const r = await readSSE('/api/interview/answer-stream', payload, async text => {
+      await ensureLive();
+      acc += text;
+      live.append(text);
+      pushStreamSpeech(text);
+    });
+    if (!started) {   // 还没出字就结束了（极少见，例如命中预取瞬间返回）
+      await ensureLive();
+      acc = r.nextLine || '';
+      live.append(acc);
+      pushStreamSpeech(acc);
+    }
+    // 补上生成完毕后的尾巴（服务端可能整句返回，如预取命中）
+    const rest = String(r.nextLine || '').slice(acc.length);
+    endStreamSpeech(rest);
+    if (live && !live.text()) live.append(r.nextLine || '');
+    return r;
+  } catch (e) {
+    // 流式不可用 → 退回到原接口，行为保持一致
+    if (started) { try { endStreamSpeech(''); } catch {} }
+    const r = await API('/api/interview/answer', payload);
+    if (live) { live.bubble.textContent = r.nextLine || ''; }
+    else addMsg('ai', r.nextLine, false);
+    return r;
+  }
+}
+
+/** 口头指令执行 */
+async function runVoiceCommand(cmd, sess) {
+  if (cmd === 'finish') { await finishInterview(); return; }
+  if (cmd === 'restart') {
+    await tryRestartInterview(sess);
+    return;
+  }
+  if (cmd === 'explain') {
+    setVoiceState('thinking', '⏳ 面试官正在把这道题讲通俗…');
+    showTyping();
+    try {
+      const r = await readSSE('/api/interview/explain', { sessionId: sess.id, qIndex: sess.currentQ.index }, () => {});
+      hideTyping();
+      addMsg('sys', '💡 按你的要求，先把这道题讲通俗一点');
+      addMsg('ai', r.nextLine, true);
+    } catch (e) {
+      hideTyping();
+      const r = await API('/api/interview/explain', { sessionId: sess.id, qIndex: sess.currentQ.index });
+      addMsg('ai', r.nextLine, true);
+    }
+    return;
+  }
+  if (cmd === 'easier' || cmd === 'harder') {
+    const label = cmd === 'easier' ? '换简单一点' : '换难一点';
+    setVoiceState('thinking', `⏳ 正在${label}…`);
+    showTyping();
+    const r = await API('/api/interview/coach', { sessionId: sess.id, qIndex: sess.currentQ.index, kind: cmd });
+    hideTyping();
+    addMsg('sys', `💡 按你的要求：${label}`);
+    addMsg('ai', r.nextLine, true);
+    return;
+  }
+  if (cmd === 'next') {
+    // 跳过点评直接出新题：走同一条 Agent 路径，只是带上 command='next'
+    setVoiceState('thinking', '⏳ 直接换下一题…');
+    showTyping();
+    let live = null, started = false, acc = '';
+    try {
+      const r = await readSSE('/api/interview/answer-stream', {
+        sessionId: sess.id, qIndex: sess.currentQ.index, answer: '', command: 'next'
+      }, async text => {
+        if (!started) { started = true; hideTyping(); live = addMsgLive('ai'); await beginStreamSpeech(sess); }
+        acc += text; live.append(text); pushStreamSpeech(text);
+      });
+      if (!started) { hideTyping(); live = addMsgLive('ai'); await beginStreamSpeech(sess); live.append(r.nextLine || ''); pushStreamSpeech(r.nextLine || ''); }
+      endStreamSpeech(String(r.nextLine || '').slice(acc.length));
+      return applyTurnResult(sess, r);
+    } catch (e) {
+      hideTyping();
+      const r = await API('/api/interview/answer', { sessionId: sess.id, qIndex: sess.currentQ.index, answer: '', command: 'next' });
+      addMsg('ai', r.nextLine, true);
+      return applyTurnResult(sess, r);
+    }
+  }
+}
+
+/** 重新开始面试：结束当前会话，用同样配置重开一场 */
+async function tryRestartInterview(sess) {
+  const position = state.posId, rounds = +($('opt-rounds') && $('opt-rounds').value || 6);
+  const mode = ($('opt-mode') && $('opt-mode').value) || 'voice';
+  cleanupMeeting();
+  state.session = null;
+  pending = null;
+  $('chat-log').innerHTML = '';
+  const r = await API('/api/interview/start', { userId: state.user.id, position, rounds, mode, });
+  state.session = { id: r.sessionId, mode, currentQ: { ...r.question, index: 0 } };
+  state.nudgeCount = 0;
+  state.reverseMode = false;
+  state.reverseCount = 0;
+  state.thinkUntil = null;
+  pending = { greeting: r.greeting, question: r.question, planSize: r.planSize, jdApplied: r.jdApplied };
+  state.mtgId = newMeetingId();
+  showPrejoin();
+  go('interview');
+  await prejoinPrepare(mode);
+  toast('已重新开始一场面试');
 }
 
 function showTyping() {
@@ -851,17 +1033,19 @@ async function askInterviewer(text) {
   showTyping();
   try {
     const r = await API('/api/interview/ask', { sessionId: sess.id, question: text });
+    if (state.session !== sess) return;
     hideTyping();
     state.reverseCount++;
     if (state.reverseCount >= 3) {
       // 第 3 个问题回答完 → 面试官收尾 → 说完自动生成报告
       state.autoFinishAfterSpeech = true;
       addMsg('ai', r.reply + ' 时间关系，今天的面试就到这里。感谢你的参与，我正在为你生成评估报告。', true);
-      if (!$('tts-on').checked) setTimeout(() => finishInterview(true), 3000);
+      if (!$('tts-on').checked) scheduleFinishInterview(3000);
     } else {
       addMsg('ai', r.reply, true);
     }
   } catch (e) {
+    if (state.session !== sess) return;
     hideTyping();
     toast(e.message);
   }
@@ -871,6 +1055,7 @@ async function submitAnswer(fromVoice) {
   const input = $('answer-input');
   if (!state.session) return;
   if (submitLock) return;
+  const sess = state.session;
   submitLock = true;
   clearTimeout(autoSubmitTimer);
 
@@ -879,6 +1064,7 @@ async function submitAnswer(fromVoice) {
 
   // 语音提交：停收音并等服务端精识别回填最终文本（本地二次识别，通常 ≤1s）
   if (recog || listenState) await stopListeningFinal();
+  if (state.session !== sess) { submitLock = false; return; }
 
   const text = input.value.trim();
   if (!text) { submitLock = false; return toast(state.reverseMode ? '请先说出你想反问的问题' : '请先开口作答'); }
@@ -886,6 +1072,17 @@ async function submitAnswer(fromVoice) {
   // 反问环节：候选人提问，面试官回答
   if (state.reverseMode) {
     try { await askInterviewer(text); } finally { submitLock = false; }
+    return;
+  }
+
+  // —— 口头指令优先级最高 ——
+  const cmd = detectVoiceCommand(text);
+  if (cmd) {
+    input.value = '';
+    try {
+      await runVoiceCommand(cmd, sess);
+    } catch (e) { toast(e.message); }
+    finally { submitLock = false; }
     return;
   }
 
@@ -901,46 +1098,64 @@ async function submitAnswer(fromVoice) {
   showTyping();
 
   try {
-    const r = await API('/api/interview/answer', {
-      sessionId: state.session.id,
-      qIndex: state.session.currentQ.index,
-      answer: text,
-      metrics
-    });
-    hideTyping();
-    state.nudgeCount = 0;   // 进入下一环节，面试官引导次数清零
-    // Agent 决策可视化：让候选人看到面试官"在想什么、调用了什么工具"
-    if (r.agent && r.agent.thought) {
-      const tools = (r.agent.tools || []).filter(Boolean);
-      addMsg('sys', '🤔 面试官 Agent 思考：' + r.agent.thought +
-        (tools.length ? `（调用工具：${tools.map(t => toolCN[t] || t).join(' · ')}${r.agent.steps ? `，共 ${r.agent.steps} 步` : ''}）` : ''));
-      renderAgentTrace(r.agent);   // 同步画到「Agent 工作台」面板
-    }
-    if (r.followUp) {
-      // 面试官追问，题目不变
-      $('ai-badge').textContent = '⚡ 追问';
-      addMsg('ai', r.nextLine, true);
-      addMsg('sys', '⚡ AI 面试官针对你的回答进行了追问，请继续作答');
-    } else if (r.done) {
-      addMsg('ai', r.nextLine, true);
-      enterReverseMode();          // 面试官提问环节结束 → 反问环节
-      return;
-    } else {
-      addMsg('ai', r.nextLine, true);
-      state.session.currentQ = r.question;
-      setCurrentQ(r.question.text);
-      updateProgress(r.progress.done, r.progress.total);
-      startThinkCountdown(15);     // 新题目 → 15 秒思考时间（对标 HireVue/大易）
-    }
+    const payload = { sessionId: sess.id, qIndex: sess.currentQ.index, answer: text, metrics };
+    const r = await answerStream(payload, sess);
+    if (state.session !== sess) return;
+    applyTurnResult(sess, r, true);
   } catch (e) {
+    if (state.session !== sess) return;
     hideTyping();
     toast(e.message);
     setVoiceState('idle', '⚠️ 提交失败');
     $('mic-status').textContent = '网络或服务异常，已恢复收音，请再说一次';
   } finally {
-    submitLock = false;
-    $('answer-input').disabled = false;
+    if (!state.session || state.session === sess) {
+      submitLock = false;
+      $('answer-input').disabled = false;
+    }
   }
+}
+
+/**
+ * 一轮回答的收尾：渲染 Agent 思考、处理追问 / 换题 / 收尾。
+ * @param spoken true 表示这句话已经在流式过程中朗读过了，这里不再重复念
+ */
+function applyTurnResult(sess, r, spoken = false) {
+  hideTyping();
+  state.nudgeCount = 0;   // 进入下一环节，面试官引导次数清零
+  if (!r || state.session !== sess) return;
+  // Agent 决策可视化：让候选人看到面试官"在想什么、调用了什么工具"
+  if (r.agent && r.agent.thought) {
+    const tools = (r.agent.tools || []).filter(Boolean);
+    addMsg('sys', '🤔 面试官 Agent 思考：' + r.agent.thought +
+      (tools.length ? `（调用工具：${tools.map(t => toolCN[t] || t).join(' · ')}${r.agent.steps ? `，共 ${r.agent.steps} 步` : ''}）` : ''));
+    renderAgentTrace(r.agent);   // 同步画到「Agent 工作台」面板
+  }
+  if (r.followUp) {
+    // 面试官追问，题目不变
+    $('ai-badge').textContent = '⚡ 追问';
+    if (!spoken) addMsg('ai', r.nextLine, true);
+    addMsg('sys', '⚡ AI 面试官针对你的回答进行了追问，请继续作答');
+    return;
+  }
+  if (r.sameTurn) {
+    // 术语确认 / 通俗讲解：仍在当前这一题，等他接话
+    if (!spoken) addMsg('ai', r.nextLine, true);
+    if (r.question) { state.session.currentQ = r.question; setCurrentQ(r.question.text); }
+    return;
+  }
+  if (r.done) {
+    addMsg('ai', r.nextLine, spoken ? false : true);
+    enterReverseMode();          // 面试官提问环节结束 → 反问环节
+    return;
+  }
+  addMsg('ai', r.nextLine, spoken ? false : true);
+  if (r.question) {
+    state.session.currentQ = r.question;
+    setCurrentQ(r.question.text);
+  }
+  if (r.progress) updateProgress(r.progress.done, r.progress.total);
+  startThinkCountdown(15);       // 新题目 → 15 秒思考时间（对标 HireVue/大易）
 }
 
 /* ---------------- 语音输入（Web Speech API · 语音优先） ----------------
@@ -1004,6 +1219,20 @@ function isAnswerFinished(text) {
 const TURN_CHECK_EMPTY_MS = 8000;  // 一直没开口，8 秒后面试官主动鼓励（有内容则永不打断）
 const AUTO_SUBMIT_MIN_CHARS = 8;   // 手动提交时的最短内容要求
 
+/** 长静音才收尾：引擎判定说完后再给一段缓冲期，期间一开口就继续听 */
+let endpointTimer = null;
+function scheduleEndpointSubmit(delay = 1400) {
+  clearTimeout(endpointTimer);
+  endpointTimer = setTimeout(() => {
+    endpointTimer = null;
+    if (submitLock || aiSpeakingNow || !state.session) return;
+    if (!listenState || listenState.stopped || listenState.finalizing) return;
+    const t = $('answer-input').value.trim();
+    if (t.replace(/\s+/g, '').length < 8) return;   // 没啥实质内容就继续等他讲
+    submitAnswer(true);
+  }, delay);
+}
+
 /* ===== 边听边准备下一步：静默预取（不打断、不改界面，提交时秒回） ===== */
 let prefetchTimer = null, prefetching = false, lastPrefetchLen = 0;
 
@@ -1047,9 +1276,27 @@ function prefetchNow() {
 /** 提交前停收音：额外等待 /api/asr/end 的精识别回填（无本地引擎时立即返回） */
 async function stopListeningFinal() {
   const eng = recog;
-  quietStopListening();
-  if (eng && eng.stoppedPromise) {
-    try { await Promise.race([eng.stoppedPromise, new Promise(r => setTimeout(r, 2500))]); } catch {}
+  const sess = state.session, listening = listenState;
+  if (listenState) listenState.finalizing = true;
+  let webDone = null;
+  if (eng && listenState && listenState.engine === 'webspeech') {
+    webDone = new Promise(resolve => {
+      const done = () => { clearTimeout(timer); resolve(); };
+      const timer = setTimeout(done, 1500);
+      eng.addEventListener('end', done, { once: true });
+    });
+  }
+  const stopped = quietStopListening();
+  // 等待上限 450ms：名词准确度交给上下文语义推理兜底，绝不为纠错让候选人多等
+  const refineWait = (webDone || (eng && eng.stoppedPromise) || stopped);
+  try {
+    await Promise.race([refineWait, new Promise(r => setTimeout(r, 450))]);
+  } catch {}
+  if (state.session !== sess || listenState !== listening) return;
+  if (recog === eng) recog = null;
+  if (webDone && listenState && listenState.interim) {
+    $('answer-input').value += punctuate(listenState.interim, { final: true });
+    listenState.interim = '';
   }
 }
 const TURN_NUDGE_MAX = 3;          // 每道题面试官最多主动引导 3 次，之后安静等你
@@ -1156,11 +1403,7 @@ function interruptInterviewer() {
     if ($('answer-input').value.trim()) submitAnswer(true);
     return;
   }
-  try { speechSynthesis.cancel(); } catch {}
-  aiSpeakingNow = false;
-  clearTimeout(ttsWatchdog); clearInterval(ttsResumeTimer);
-  stopBargeInWatch();
-  setAvatarTalking(false);
+  stopSpeech();
   skipThink();
   const tile = $('tile-ai'); if (tile) tile.classList.remove('speaking');
   $('ai-caption').classList.add('hidden');
@@ -1205,12 +1448,15 @@ function startListening({ auto = false } = {}) {
   if (useLocal && !localOk) useLocal = false;   // 本地引擎不可用则退回浏览器识别
 
   const input = $('answer-input');
+  const sess = state.session;
+  const baseText = input.value;
   listenState = {
     baseLen: input.value.length,
     auto, stopped: false, gotResult: false, lastFinal: '',
     engine: useLocal ? 'local' : 'webspeech',
     lastSpeech: Date.now(), restartTimer: null, noResultTimer: null
   };
+  const listening = listenState;
   if (!state.voiceSession || state.voiceSession.endTime) state.voiceSession = { startTime: Date.now(), used: true };
 
   let r;
@@ -1219,8 +1465,8 @@ function startListening({ auto = false } = {}) {
       deviceId: micDeviceId,
       onRefined: t => {
         // 提交前精识别回填：用服务端 SenseVoice 全文替换流式文本（更准、带标点）
-        if (!t) return;
-        input.value = punctuate(t, { final: true });
+        if (!t || state.session !== sess || listenState !== listening || (!listening.finalizing && recog !== r)) return;
+        input.value = baseText + punctuate(t, { final: true });
         if (listenState) listenState.lastFinal = '';
         renderVoice('');
       }
@@ -1230,11 +1476,12 @@ function startListening({ auto = false } = {}) {
     r.lang = 'zh-CN';
     r.continuous = true;
     r.interimResults = true;   // 关键：边说边上屏，不等整句
-    r.maxAlternatives = 1;
+    r.maxAlternatives = 3;
   }
   recog = r;
 
   r.onstart = () => {
+    if (state.session !== sess || recog !== r || !listenState || listenState.stopped) return;
     micBtnUI(true);
     skipThink();   // 一开口就结束"思考计时"，避免界面还在数秒
     const tag = listenState.engine === 'local' ? '内置识别' : '在线识别';
@@ -1256,7 +1503,8 @@ function startListening({ auto = false } = {}) {
 
   // 两个引擎统一的结果处理（final=本段已确认文字，interim=正在说的临时文字，endpoint=这句说完了）
   const handleResult = (final, interim, endpoint) => {
-    if (!listenState || listenState.stopped) return;
+    if (state.session !== sess || recog !== r || !listenState || (listenState.stopped && !listenState.finalizing)) return;
+    listenState.interim = interim || '';
     if (final || interim) {
       listenState.gotResult = true;
       clearTimeout(listenState.noResultTimer);
@@ -1270,16 +1518,22 @@ function startListening({ auto = false } = {}) {
     }
     if (final || interim) listenState.lastSpeech = Date.now();
     renderVoice(interim || '');
+    if (listenState.finalizing) return;
     setVoiceState('live', '🔴 正在听你说…');
     $('mic-status').textContent = '放心说，多停顿也没事；说完了讲一句「就这些 / 不知道」，或按空格提交';
     // 边听边准备下一步：把已说内容静默发给面试官预热，等你真提交时几乎秒回
     schedulePrefetch();
-    // 引擎判定"这句说完了" → 只有当你说了结束词才提交；否则继续听，绝不抢答
+    // 你还在继续说 → 取消"准备收尾"的计时（中途改口、补充一律以最新表述为准）
+    clearTimeout(endpointTimer);
     if (endpoint) {
       listenState.lastFinal = '';                     // 新一段重新计
       if (isAnswerFinished(input.value)) {
         setVoiceState('done', '✅ 收到，进入下一题…');
         scheduleAutoSubmit(700);
+      } else {
+        // 引擎判定这句说完了（已静音约 1.6s）→ 再给 1.4s 缓冲：
+        // 期间你一张嘴就继续听，真没动静才收尾进入点评与出题，不抢答、不打断思考。
+        scheduleEndpointSubmit(1400);
       }
     }
     scheduleTurnCheck();
@@ -1299,7 +1553,7 @@ function startListening({ auto = false } = {}) {
   }
 
   r.onerror = e => {
-    if (!listenState) return;   // 已结束/已提交的引擎异步报错直接忽略，避免空指针
+    if (state.session !== sess || recog !== r || !listenState) return;
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
       listenState.stopped = true;
       setVoiceState('idle', '❌ 麦克风没权限');
@@ -1327,6 +1581,7 @@ function startListening({ auto = false } = {}) {
   };
 
   r.onend = () => {
+    if (state.session !== sess || recog !== r) return;
     recog = null;
     micBtnUI(false);
     const canRestart = listenState && !listenState.stopped
@@ -1353,12 +1608,12 @@ function userStopListening() {
     clearTimeout(listenState.noResultTimer);
     clearTimeout(turnCheckTimer);
   }
-  if (recog) { try { recog.stop(); } catch {} }
   micBtnUI(false);
   // 点 🎙 ＝「我说完了」→ 有内容就直接提交，不让用户再多点一次
   const t = $('answer-input').value.trim();
   clearTimeout(autoSubmitTimer);
   if (t.length >= 4 && state.session && !aiSpeakingNow) { submitAnswer(true); return; }
+  quietStopListening();
   finishListenUI('已停止收音');
 }
 
@@ -1370,12 +1625,14 @@ function quietStopListening(keepVoice) {
     clearTimeout(autoSubmitTimer);
   }
   clearTimeout(turnCheckTimer);
-  if (recog) { try { recog.stop(); } catch {} }
-  recog = null;
+  let stopped;
+  if (recog) { try { stopped = recog.stop(); } catch {} }
+  if (!listenState || !listenState.finalizing || listenState.engine !== 'webspeech') recog = null;
   micBtnUI(false);
   setMeSpeaking(false);
   // keepVoice=true（面试官插话引导）：保留语速统计起点，等候选人继续
   if (!keepVoice && state.voiceSession) state.voiceSession.endTime = Date.now();
+  return stopped;
 }
 
 function finishListenUI(msg) {
@@ -1401,6 +1658,7 @@ async function runTurnCheck() {
   if (Date.now() - listenState.lastSpeech < TURN_CHECK_EMPTY_MS - 300) { scheduleTurnCheck(); return; }
   if ((state.nudgeCount || 0) >= TURN_NUDGE_MAX) return;        // 引导次数用完，安静等你
   turnChecking = true;
+  const sess = state.session;
   const lastAt = listenState.lastSpeech;                        // 快照：判断期间用户若又开口则作废
   try {
     const r = await API('/api/interview/turn-check', {
@@ -1408,7 +1666,7 @@ async function runTurnCheck() {
       qIndex: state.session.currentQ.index,
       answer: text
     });
-    if (!listenState || listenState.stopped || !recog) return;
+    if (state.session !== sess || !listenState || listenState.stopped || !recog) return;
     if (listenState.lastSpeech !== lastAt) { scheduleTurnCheck(); return; } // 你又开口了，继续听
     // 一直没开口 → 面试官说一句引导语
     state.nudgeCount = (state.nudgeCount || 0) + 1;
@@ -1423,12 +1681,13 @@ async function runTurnCheck() {
 
 /** 面试官说完 → 自动开麦（语音优先的核心）；若处于思考倒计时，则等倒计时结束 */
 function scheduleAutoListen(delay = 400) {
+  const sess = state.session;
   if (!$('auto-mic') || !$('auto-mic').checked) return;
   if (!state.session || state.session.mode === 'text') return;
   if (micMuted || recog || aiSpeakingNow) return;
   // 不再等"思考倒计时"结束：面试官一说完就开麦，你想提前开口也录得到
   setTimeout(() => {
-    if (!recog && !aiSpeakingNow && state.session && !$('answer-input').disabled) startListening({ auto: true });
+    if (state.session === sess && !recog && !aiSpeakingNow && state.session && !micMuted && $('auto-mic').checked && !$('answer-input').disabled) startListening({ auto: true });
   }, delay);
 }
 
@@ -1525,15 +1784,37 @@ async function toggleCamera() {
 
 /* ---------------- TTS 语音播报（自然拟人化） ----------------
  * 目标：像豆包/真人面试官，而不是系统朗读机器。
- * 做法：① 优先挑"神经网络自然音色"（Xiaoxiao 女声 / Yunxi 男声 等），
+ * 做法：① 优先挑神经网络自然音色，整场保持同一音色，
  *      ② 按标点断句逐句播报，句间自然停顿；
  *      ③ 语速放慢到 0.95~1.0 并做轻微起伏，避免平直机械感；
  *      ④ 保留看门狗：Chrome 的 onend 丢失会导致 aiSpeakingNow 卡死 → 永不自动开麦。
  */
 let ttsWatchdog = null, ttsResumeTimer = null;
-let ttsVoicePref = localStorage.getItem('mm.tts.voice') || 'auto';   // auto | female | male
+let speechGeneration = 0, speechNextTimer = null, currentUtterance = null, autoFinishTimer = null;
+
+function scheduleFinishInterview(delay) {
+  const sess = state.session;
+  clearTimeout(autoFinishTimer);
+  autoFinishTimer = setTimeout(() => { if (sess && state.session === sess) finishInterview(true); }, delay);
+}
+
+// 先作废回调再 cancel，取消事件及句间定时器都不能重新排入下一句。
+function stopSpeech() {
+  speechGeneration++;
+  clearTimeout(speechNextTimer);
+  clearTimeout(ttsWatchdog);
+  clearInterval(ttsResumeTimer);
+  if (currentUtterance) currentUtterance.onend = currentUtterance.onerror = null;
+  currentUtterance = null;
+  aiSpeakingNow = false;
+  try { speechSynthesis.cancel(); } catch {}
+  stopBargeInWatch();
+  setAvatarTalking(false);
+}
+localStorage.removeItem('mm.tts.voice');
 let ttsRate = parseFloat(localStorage.getItem('mm.tts.rate') || '1') || 1;
 let ttsVoices = [];
+let selectedTtsVoice = null;
 
 /** 浏览器语音列表异步加载，取一次并缓存 */
 function loadVoices() {
@@ -1544,27 +1825,17 @@ function loadVoices() {
 
 /** 按自然度排序挑音色：优先"Online/Natural"神经网络音，其次常见自然音名 */
 function pickVoice() {
+  if (selectedTtsVoice) return selectedTtsVoice;
   const zh = ttsVoices.filter(v => /^zh/i.test(v.lang) || /Chinese|中文|普通话/i.test(v.name));
   if (!zh.length) return null;
   const preferFemale = ['Xiaoxiao', '晓晓', 'Xiaoyi', '晓伊', 'Yaoyao', 'Huihui', 'Tingting', 'Google 普通话'];
-  const preferMale = ['Yunxi', '云希', 'Yunyang', '云扬', 'Yunye', '云野', 'Kangkang', '康康', 'Liang'];
-  const wants = ttsVoicePref === 'male' ? preferMale : ttsVoicePref === 'female' ? preferFemale : [...preferFemale, ...preferMale];
-  for (const name of wants) {
+  for (const name of preferFemale) {
     const hit = zh.find(v => v.name.includes(name));
-    if (hit) return hit;
+    if (hit) { selectedTtsVoice = hit; return hit; }
   }
-  // 兜底：优先带 Natural / Online 标记的音色，再退回第一个中文音
-  const neural = zh.find(v => /natural|online|neural/i.test(v.name));
-  return neural || zh[0];
+  return null;
 }
 
-function setTtsVoice(pref) {
-  ttsVoicePref = pref;
-  localStorage.setItem('mm.tts.voice', pref);
-  const sel = $('mtg-voice-select');
-  if (sel) sel.value = pref;
-  toast('面试官音色已切换，下一句话生效');
-}
 function setTtsRate(v) {
   ttsRate = Math.min(1.3, Math.max(0.7, parseFloat(v) || 1));
   localStorage.setItem('mm.tts.rate', String(ttsRate));
@@ -1576,11 +1847,12 @@ function setTtsRate(v) {
 function tryVoice() {
   loadVoices();
   const v = pickVoice();
+  if (!v) return toast('音色尚未就绪，请稍后重试');
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance('你好，我是今天的面试官。请介绍一下你自己，说说你和这个岗位相关的经历。');
     u.lang = 'zh-CN';
-    if (v) u.voice = v;
+    u.voice = v;
     u.rate = ttsRate; u.pitch = 1;
     speechSynthesis.speak(u);
     toast('试听中：' + (v ? v.name.replace(/\s*-\s*Chinese.*$/, '') : '系统默认音色'));
@@ -1606,17 +1878,33 @@ function splitSentences(text) {
   return out;
 }
 
-function speakText(text) {
+async function speakText(text) {
+  if (!state.session) return;
+  stopSpeech();
+  const generation = speechGeneration;
+  const sess = state.session;
+  const active = () => generation === speechGeneration && state.session === sess && aiSpeakingNow;
+  aiSpeakingNow = true;
+  // 首次进入时语音列表可能尚未返回，等待加载，避免落到浏览器默认音色。
+  const voiceDeadline = Date.now() + 1500;
+  loadVoices();
+  while (!pickVoice() && Date.now() < voiceDeadline && active()) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+    loadVoices();
+  }
+  if (!active()) return;
+  if (!pickVoice()) { finishSpeech(); return; }
   const chunks = splitSentences(text);
   const total = chunks.join('').length || 1;
   const estMs = Math.min(30000, 1200 + total * 300);
   const forceDone = () => {   // 看门狗：onend 丢失时强制复位，保证候选人能开麦
-    if (!aiSpeakingNow) return;
+    if (!active()) return;
+    if (currentUtterance) currentUtterance.onend = currentUtterance.onerror = null;
+    clearTimeout(speechNextTimer);
     try { speechSynthesis.cancel(); } catch {}
     finishSpeech();
   };
   try {
-    speechSynthesis.cancel();
     loadVoices();
     const voice = pickVoice();
     const baseRate = ttsRate;
@@ -1626,9 +1914,11 @@ function speakText(text) {
 
     let i = 0;
     const speakNext = () => {
+      if (!active()) return;
       if (i >= chunks.length) { finishSpeech(); return; }
       const seg = chunks[i++];
       const u = new SpeechSynthesisUtterance(seg);
+      currentUtterance = u;
       u.lang = 'zh-CN';
       if (voice) u.voice = voice;
       // 语速与音高做轻微随机起伏：真人说话不会每句完全一样
@@ -1636,15 +1926,21 @@ function speakText(text) {
       u.rate = Math.max(0.7, Math.min(1.3, baseRate + jitter));
       u.pitch = 1 + (Math.random() - 0.5) * 0.12;
       u.volume = 1;
-      u.onend = () => setTimeout(speakNext, 90);   // 句间 90ms 停顿，像真人换气
-      u.onerror = () => setTimeout(speakNext, 60);
+      let advanced = false;
+      const advance = delay => {
+        if (advanced || !active()) return;
+        advanced = true;
+        speechNextTimer = setTimeout(speakNext, delay);
+      };
+      u.onend = () => advance(90);
+      u.onerror = () => advance(60);
       speechSynthesis.speak(u);
     };
     speakNext();
 
     // Chrome 长文本假死缓解：周期性 resume
     clearInterval(ttsResumeTimer);
-    ttsResumeTimer = setInterval(() => { try { speechSynthesis.resume(); } catch {} }, 4000);
+    ttsResumeTimer = setInterval(() => { if (active()) { try { speechSynthesis.resume(); } catch {} } }, 4000);
     // 看门狗：超过估算时长 + 缓冲仍未结束 → 强制收尾
     clearTimeout(ttsWatchdog);
     ttsWatchdog = setTimeout(forceDone, estMs + 5000);
@@ -1654,13 +1950,95 @@ function speakText(text) {
   }
 }
 
+/**
+ * 流式朗读（"边生成边念"）：不等整段话写完，攒够一个小句就立刻念出去。
+ * 这是通话流畅感的来源 —— 候选人听到的是"一边想一边说"，而不是"想完了才念"。
+ */
+const streamSpeech = { active: false, buffer: '', queue: [], playing: false, voice: null, sess: null, lastPush: 0 };
+
+async function beginStreamSpeech(sess) {
+  if (!$('tts-on').checked) { streamSpeech.active = true; streamSpeech.sess = sess; return; }
+  stopSpeech();
+  streamSpeech.active = true;
+  streamSpeech.buffer = '';
+  streamSpeech.queue = [];
+  streamSpeech.playing = false;
+  streamSpeech.sess = sess;
+  aiSpeakingNow = true;
+  setMeSpeaking(false);
+  const deadline = Date.now() + 1200;
+  loadVoices();
+  while (!pickVoice() && Date.now() < deadline) { await new Promise(r => setTimeout(r, 60)); loadVoices(); }
+  streamSpeech.voice = pickVoice();
+  setAvatarTalking(true);
+  const tile = $('tile-ai'); if (tile) tile.classList.add('speaking');
+}
+
+/** 每收到一段新文字就切出可念的小句入队 */
+function pushStreamSpeech(chunk) {
+  if (!streamSpeech.active) return;
+  if (chunk) streamSpeech.buffer += chunk;
+  streamSpeech.lastPush = Date.now();
+  if (!$('tts-on').checked) return;
+  // 遇到句读就切出来念；长句无标点时超过 24 字也切，避免干等
+  const parts = streamSpeech.buffer.split(/(?<=[。！？；，、!?;,])/);
+  streamSpeech.buffer = parts.pop() || '';
+  for (const seg of parts) {
+    const t = seg.trim();
+    if (t) streamSpeech.queue.push(t);
+  }
+  if (streamSpeech.buffer.length > 24) { streamSpeech.queue.push(streamSpeech.buffer); streamSpeech.buffer = ''; }
+  pumpStreamSpeech();
+}
+
+function pumpStreamSpeech() {
+  if (!streamSpeech.active || streamSpeech.playing || !streamSpeech.queue.length) return;
+  if (!streamSpeech.voice) { loadVoices(); streamSpeech.voice = pickVoice(); if (!streamSpeech.voice) return; }
+  const text = streamSpeech.queue.shift();
+  if (!text) return;
+  streamSpeech.playing = true;
+  const u = new SpeechSynthesisUtterance(text);
+  currentUtterance = u;
+  u.lang = 'zh-CN';
+  u.voice = streamSpeech.voice;
+  u.rate = Math.max(0.7, Math.min(1.3, ttsRate + (Math.random() - 0.5) * 0.08));
+  u.pitch = 1 + (Math.random() - 0.5) * 0.12;
+  u.volume = 1;
+  let settled = false;
+  const next = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(speechNextTimer);
+    speechNextTimer = setTimeout(() => { streamSpeech.playing = false; pumpStreamSpeech(); }, 60);
+  };
+  u.onend = next;
+  u.onerror = next;
+  speechSynthesis.speak(u);
+}
+
+function endStreamSpeech(finalChunk) {
+  if (!streamSpeech.active) return;
+  if (finalChunk) pushStreamSpeech(finalChunk);
+  const rest = streamSpeech.buffer.trim();
+  if (rest) streamSpeech.queue.push(rest);
+  streamSpeech.buffer = '';
+  streamSpeech.active = false;
+  const sess = streamSpeech.sess;
+  // 等队列放完 → 按常规收尾（自动开麦）
+
+  const waitDone = () => {
+    if (!aiSpeakingNow) return;
+    const done = !streamSpeech.playing && !streamSpeech.queue.length;
+    if (done) { const t = $('tile-ai'); if (t) t.classList.remove('speaking'); finishSpeech(); return; }
+    setTimeout(() => { if (state.session === sess) waitDone(); }, 120);
+  };
+  waitDone();
+}
+
 function finishSpeech() {
   if (!aiSpeakingNow) return;   // 防止 onend/onerror/看门狗重复触发
-  aiSpeakingNow = false;
-  clearTimeout(ttsWatchdog);
-  clearInterval(ttsResumeTimer);
-  stopBargeInWatch();
-  setAvatarTalking(false);
+  stopSpeech();
+  if (!state.session) return;
   const t = $('tile-ai'); if (t) t.classList.remove('speaking');
   // 反问环节结束语说完 → 直接收尾生成报告
   if (state.autoFinishAfterSpeech) {
@@ -1680,10 +2058,15 @@ function cleanupMeeting() {
   stopBargeInWatch();
   if ($('dev-panel')) { $('dev-panel').classList.add('hidden'); $('ctrl-dev').classList.remove('active'); }
   skipThink();
-  try { speechSynthesis.cancel(); } catch {}
-  aiSpeakingNow = false;
-  clearTimeout(ttsWatchdog); clearInterval(ttsResumeTimer);
+  stopSpeech();
+  state.autoFinishAfterSpeech = false;
+  clearTimeout(prefetchTimer);
+  clearTimeout(autoFinishTimer);
+  if (listenState) listenState.finalizing = false;
   quietStopListening();
+  listenState = null;
+  submitLock = false;
+  $('answer-input').disabled = false;
   clearTimeout(aiSpeakTimer); clearTimeout(aiCaptionTimer);
   setMeSpeaking(false);
   $('tile-ai').classList.remove('speaking');
@@ -1707,14 +2090,15 @@ async function finishInterview(auto = false) {
   const sess = state.session;
   // 想结束就立刻结束：先停一切采集与播放，马上切到报告页，报告在后台生成完自动渲染
   const videoMetrics = (sess.mode === 'video' && camStream) ? VisionMonitor.summary() : null;
-  cleanupMeeting();
   state.session = null;
+  cleanupMeeting();
   pending = null;
   state.lastReportSessionId = sess.id;
   go('report');
   renderReportLoading();
   try {
     const { report, transcript } = await API('/api/interview/finish', { sessionId: sess.id, videoMetrics });
+    if (state.session || state.lastReportSessionId !== sess.id) return;
     // 报告收尾阶段：评估官与陪练官并行工作过，点亮角色卡（若用户打开过工作台）
     markAgentLive('evaluator');
     markAgentLive('coach');
@@ -1884,7 +2268,15 @@ function lineChart(curve) {
 async function viewSession(id) {
   try {
     const { session } = await API('/api/session?id=' + id);
-    renderReport(session.report || { overall: 0, dimensions: [] }, { position: session.position, time: session.finishedAt });
+    const transcript = (session.rounds || []).map((r, i) => ({
+      index: i + 1,
+      question: r.question && r.question.text,
+      answer: r.answer || '',
+      followUps: (r.followUps || []).map(f => ({ q: f.q || '', a: f.a || '' })),
+      metrics: r.metrics || null
+    })).filter(r => r.question || r.answer);
+    state.lastReportSessionId = id;
+    renderReport(session.report || { overall: 0, dimensions: [] }, { position: session.position, time: session.finishedAt }, transcript);
     go('report');
   } catch (e) { toast(e.message); }
 }
@@ -1909,6 +2301,59 @@ async function kbSearch() {
 }
 
 /* ---------------- AI 设置 ---------------- */
+let bankImportPreview = null;
+function resetBankImport() {
+  bankImportPreview = null;
+  $('bank-save').disabled = true;
+  $('bank-import-status').textContent = '';
+  $('bank-import-preview').innerHTML = '';
+}
+async function downloadBankTemplate() {
+  try {
+    const template = await API('/api/bank/template?position=' + encodeURIComponent($('kb-pos').value));
+    const url = URL.createObjectURL(new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = template.position + '-题库模板.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) { toast(e.message); }
+}
+async function readBankFile(input) {
+  resetBankImport();
+  const f = input.files && input.files[0];
+  if (!f) return;
+  if (f.size > 2 * 1024 * 1024) return toast('JSON 文件请控制在 2 MB 以内');
+  $('bank-json').value = (await f.text()).replace(/^\uFEFF/, '');
+  await previewBankImport();
+}
+async function previewBankImport() {
+  resetBankImport();
+  $('bank-check').disabled = true;
+  try {
+    const text = $('bank-json').value;
+    const payload = JSON.parse(text.replace(/^\uFEFF/, ''));
+    const result = await API('/api/bank/preview-import', payload);
+    // 校验请求期间内容被编辑，预览不能再对应旧文本。
+    if ($('bank-json').value !== text) return;
+    bankImportPreview = { text, payload, revision: result.revision };
+    $('bank-import-status').textContent = `${result.name}：新增 ${result.added} 题，跳过重复 ${result.skipped} 题，导入后共 ${result.total} 题。`;
+    $('bank-import-preview').innerHTML = result.preview.map(q => `<div class="kb-hit"><b>${esc(q.id)} · ${esc(q.type)} · ${esc(q.stage)}</b><p>${esc(q.text)}</p></div>`).join('');
+    $('bank-save').disabled = result.added === 0;
+  } catch (e) { $('bank-import-status').textContent = '校验失败：' + e.message; }
+  finally { $('bank-check').disabled = false; }
+}
+async function saveBankImport() {
+  const preview = bankImportPreview;
+  if (!preview || preview.text !== $('bank-json').value) return resetBankImport();
+  $('bank-save').disabled = true;
+  try {
+    const result = await API('/api/bank/import', { ...preview.payload, revision: preview.revision });
+    resetBankImport();
+    $('bank-import-status').textContent = `已保存到本机：新增 ${result.added} 题，跳过 ${result.skipped} 题。新题和参考材料已生效，下场面试可使用。`;
+    await loadPositions();
+    $('kb-pos').value = result.position;
+    await kbSearch();
+  } catch (e) { resetBankImport(); $('bank-import-status').textContent = '保存失败：' + e.message + '；请重新校验。'; }
+}
+
 function onEngineChange() {
   const engine = $('cfg-engine').value;
   $('cfg-llm-fields').classList.toggle('hidden', engine !== 'llm');
@@ -2003,164 +2448,14 @@ function updateAIBadge(cfg) {
   }
 }
 
-/* ---------------- 管理中心（企业/教师视角） ---------------- */
-const DIM_NAMES = { content: '技术正确性', depth: '知识深度', logic: '逻辑严谨性', match: '岗位匹配度', expression: '语言表达', video: '仪态表现' };
-
-function goAdmin() {
-  go('admin');
-  adminTab('dash');
-  if (!sessionStorage.adminToken) {
-    $('admin-login').classList.remove('hidden');
-    $('admin-dash').classList.add('hidden');
-  } else {
-    loadDash();
-  }
-}
-
-async function adminLogin() {
-  const pass = $('admin-pass').value;
-  try {
-    const { ok, token } = await API('/api/admin/login', { passcode: pass });
-    if (!ok || !token) { $('admin-login-err').textContent = '口令错误'; return; }
-    sessionStorage.adminToken = token;
-    $('admin-pass').value = '';
-    $('admin-login').classList.add('hidden');
-    loadDash();
-  } catch (e) { $('admin-login-err').textContent = e.message; }
-}
-
-function adminTab(tab) {
-  document.querySelectorAll('#view-admin .btn.tab').forEach(b => b.classList.toggle('active', b.dataset.atab === tab));
-  for (const t of ['dash', 'students', 'bank', 'audits']) $('atab-' + t).classList.toggle('hidden', t !== tab);
-  if (!sessionStorage.adminToken) { $('admin-login').classList.remove('hidden'); $('admin-dash').classList.add('hidden'); return; }
-  if (tab === 'dash') loadDash();
-  if (tab === 'students') loadStudents();
-  if (tab === 'bank') loadBankTab();
-  if (tab === 'audits') loadAudits();
-}
-
-async function loadAudits() {
-  try {
-    const { list } = await AAPI('/api/admin/audits');
-    const NAME = { 'user.register': '学员注册', 'interview.finish': '面试完成', 'admin.login.ok': '管理员登录', 'admin.login.fail': '登录失败' };
-    $('atab-audits').innerHTML = `<div class="card"><h2>🛡 操作审计（最近 ${list.length} 条）</h2>
-      ${list.length ? `<table class="rep-table"><tr><th>时间</th><th>操作</th><th>详情</th></tr>
-        ${list.map(a => `<tr><td class="muted">${new Date(a.at).toLocaleString('zh-CN')}</td><td>${esc(NAME[a.action] || a.action)}</td><td class="muted">${esc(a.detail || '-')}</td></tr>`).join('')}</table>`
-      : '<div class="empty">暂无审计记录</div>'}</div>`;
-  } catch (e) { toast(e.message); }
-}
-
-async function loadDash() {
-  try {
-    const s = await AAPI('/api/admin/stats');
-    $('admin-login').classList.add('hidden');
-    $('admin-dash').classList.remove('hidden');
-    const posName = id => (state.positions.find(p => p.id === id) || {}).name || id;
-    $('admin-dash').innerHTML = `
-      <div class="stat-grid">
-        <div class="stat-card"><b>${s.totalUsers}</b><span>注册学员</span></div>
-        <div class="stat-card"><b>${s.totalInterviews}</b><span>累计面试场次</span></div>
-        <div class="stat-card"><b>${s.avgOverall}</b><span>平均综合分</span></div>
-      </div>
-      <div class="admin-two">
-        <div class="card"><h2>各岗位使用情况</h2>
-          ${s.byPosition.length ? s.byPosition.map(p => `
-            <div class="dim-bar"><div class="lbl"><span>${esc(posName(p.position))}</span><b>${p.count} 场 · 均 ${p.avg} 分</b></div>
-            <div class="track"><div class="fill" style="width:${Math.min(100, p.count * 12)}%"></div></div></div>`).join('') : '<div class="empty">暂无数据</div>'}
-        </div>
-        <div class="card"><h2>能力维度平均分（全体学员）</h2>
-          ${s.dimAvg.length ? s.dimAvg.map(d => `
-            <div class="dim-bar"><div class="lbl"><span>${DIM_NAMES[d.key] || d.key}</span><b>${d.avg}</b></div>
-            <div class="track"><div class="fill" style="width:${d.avg}%"></div></div></div>`).join('') : '<div class="empty">暂无数据</div>'}
-          <p class="muted small" style="margin-top:10px">维度均分偏低的项即学员群体共性短板，可针对性安排就业指导课程</p>
-        </div>
-      </div>
-      <div class="card"><h2>最近面试动态</h2>
-        ${s.recent.length ? `<table class="rep-table"><tr><th>学员</th><th>岗位</th><th>得分</th><th>时间</th></tr>
-          ${s.recent.map(r => `<tr><td>${esc(r.user)}</td><td>${esc(posName(r.position))}</td><td><b class="${scoreClass(r.overall)}">${r.overall}</b></td><td class="muted">${new Date(r.at).toLocaleString('zh-CN')}</td></tr>`).join('')}</table>` : '<div class="empty">暂无数据</div>'}
-      </div>`;
-  } catch (e) {
-    sessionStorage.removeItem('adminToken');
-    $('admin-login').classList.remove('hidden');
-    $('admin-login-err').textContent = e.message;
-  }
-}
-
-async function loadStudents() {
-  try {
-    const { list } = await AAPI('/api/admin/students');
-    const posMap = {}; (await API('/api/positions')).positions.forEach(p => posMap[p.id] = p.name);
-    $('atab-students').innerHTML = `<div class="card"><h2>👥 学员管理（${list.length} 人）</h2>
-      ${list.length ? `<table class="rep-table"><tr><th>姓名</th><th>面试场次</th><th>平均分</th><th>最薄弱维度</th><th>最近练习</th></tr>
-        ${list.map(u => `<tr><td>${esc(u.name)}</td><td>${u.count}</td><td><b class="${scoreClass(u.avg)}">${u.avg || '-'}</b></td>
-          <td>${u.weakestKey ? `${DIM_NAMES[u.weakestKey] || u.weakestKey}（${u.weakestAvg} 分）` : '-'}</td>
-          <td class="muted">${u.last ? new Date(u.last).toLocaleString('zh-CN') : '-'}</td></tr>`).join('')}</table>` : '<div class="empty">暂无学员数据</div>'}
-    </div>`;
-  } catch (e) { toast(e.message); }
-}
-
-async function loadBankTab() {
-  try {
-    const { positions } = await API('/api/positions');
-    state._bankPositions = positions;
-    $('ab-bank-sel').innerHTML = positions.map(p => `<option value="${p.id}">${esc(p.name)}${p.custom ? '（自定义）' : ''}</option>`).join('');
-    await renderBankDetail();
-  } catch (e) { toast(e.message); }
-}
-
-async function renderBankDetail() {
-  const id = $('ab-bank-sel').value;
-  const { detail } = await AAPI('/api/admin/bank?position=' + encodeURIComponent(id));
-  state._bankDetail = detail;
-  $('ab-bank-meta').textContent = `${detail.questions.length} 题 · ${detail.isCustom ? '企业自定义题库' : '内置题库'}`;
-  const T = { tech: '技术', project: '项目深挖', scenario: '场景', behavior: '行为' };
-  $('ab-bank-detail').innerHTML = detail.questions.map(q => `
-    <div class="q-item"><div class="q-meta">[${T[q.type] || q.type}] ${esc((q.keywords || []).join('、'))}</div>${esc(q.text)}</div>`).join('');
-}
-
-function fillBankTemplate() {
-  $('ab-import').value = JSON.stringify({
-    name: 'Golang 后端工程师',
-    intro: '负责公司核心服务开发，要求熟悉 Go 语言、高并发与微服务。',
-    skills: ['Go', 'Goroutine', 'MySQL', 'Redis', '微服务'],
-    questions: [
-      { type: 'tech', text: 'Goroutine 和线程有什么区别？GMP 调度模型是怎样的？', keywords: ['GMP', '调度', '栈', '轻量'] },
-      { type: 'tech', text: 'channel 的底层实现是什么？无缓冲和有缓冲 channel 的区别？', keywords: ['hchan', '缓冲', '阻塞', '锁'] },
-      { type: 'scenario', text: '设计一个支持十万并发的 WebSocket 推送服务，说说你的方案。', keywords: ['连接管理', '心跳', '扩容', '消息队列'] },
-      { type: 'behavior', text: '请做一个自我介绍，重点讲 Go 相关的项目经历。', keywords: ['项目', '技能', '成果'] }
-    ]
-  }, null, 2);
-}
-
-async function importBank() {
-  try {
-    const data = JSON.parse($('ab-import').value);
-    const r = await AAPI('/api/admin/bank/import', data);
-    $('ab-import-result').textContent = `✅ 已导入「${r.name}」（${r.questionCount} 题），学员端立即可见`;
-    await loadBankTab();
-    toast('题库导入成功');
-  } catch (e) {
-    $('ab-import-result').textContent = '❌ ' + e.message;
-  }
-}
-
-async function adminExport() {
-  try {
-    const { csv } = await AAPI('/api/admin/export');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'mockmirror-面试记录.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  } catch (e) { toast(e.message); }
-}
-
 /* ---------------- 初始化 ---------------- */
 (async function init() {
   try { await ensureAIReady(); } catch {}
   window.addEventListener('online', updateNetStatus);
   window.addEventListener('offline', updateNetStatus);
+  $('tts-on').addEventListener('change', () => {
+    if (!$('tts-on').checked) { stopSpeech(); scheduleAutoListen(600); }
+  });
   window.addEventListener('beforeunload', () => { try { cleanupMeeting(); } catch {} });
   // 插拔麦克风/耳机时自动刷新设备列表（并回落到可用设备）
   if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {

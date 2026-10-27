@@ -21,7 +21,6 @@
     <a data-nav="home" onclick="go('home')">开始面试</a>
     <a data-nav="history" onclick="go('history')">成长记录</a>
     <a data-nav="kb" onclick="go('kb')">知识库</a>
-    <a data-nav="admin" onclick="goAdmin()">🏫 管理中心</a>
   </nav>
   <div class="topbar-right">
     <span id="ai-mode-badge" class="badge" title="点击配置">AI 未配置</span>
@@ -38,7 +37,6 @@
     <div class="rail-item" onclick="startInterview()"><i>🆕</i><span>新建会话</span></div>
     <div class="rail-item" onclick="go('history')"><i>📈</i><span>成长记录</span></div>
     <div class="rail-item" onclick="go('kb')"><i>📖</i><span>知识库</span></div>
-    <div class="rail-item" onclick="goAdmin()"><i>🏫</i><span>管理中心</span></div>
   </aside>
 
   <!-- 中：准备区 -->
@@ -196,7 +194,6 @@
         <div class="tile tile-ai" id="tile-ai">
           <div class="ai-avatar">
             <img id="iv-photo-img" src="assets/interviewer.png" class="iv-photo" alt="面试官">
-            <video id="iv-video" class="iv-photo hidden" src="assets/interviewer-talk.mp4" loop muted playsinline></video>
             <i class="ring r1"></i><i class="ring r2"></i>
           </div>
           <div class="ai-name">苏晴 · 资深面试官<small>AI 数字人 · 已接入岗位知识库</small></div>
@@ -333,12 +330,7 @@
         </select>
       </div>
       <div class="dev-row">
-        <label for="mtg-voice-select">面试官音色</label>
-        <select id="mtg-voice-select" onchange="setTtsVoice(this.value)">
-          <option value="auto">自动（优先自然音色）</option>
-          <option value="female">温柔女声</option>
-          <option value="male">稳重男声</option>
-        </select>
+        <span class="dev-label">面试官音色</span>
         <button class="dev-refresh" onclick="tryVoice()" title="试听一句">🔊</button>
       </div>
       <div class="dev-row">
@@ -384,58 +376,26 @@
     </div>
     <div id="kb-hits"></div>
   </section>
-</main>
-
-<!-- ============ 管理中心 ============ -->
-<main id="view-admin" class="view hidden">
-  <div class="row admin-tabs">
-    <button class="btn tab active" data-atab="dash" onclick="adminTab('dash')">📊 数据看板</button>
-    <button class="btn tab" data-atab="students" onclick="adminTab('students')">👥 学员管理</button>
-    <button class="btn tab" data-atab="bank" onclick="adminTab('bank')">📚 题库管理</button>
-    <button class="btn tab" data-atab="audits" onclick="adminTab('audits')">🛡 操作审计</button>
-    <span class="flex1"></span>
-    <button class="btn ghost sm" onclick="adminExport()">⬇ 导出 CSV</button>
-  </div>
-
-  <section id="atab-dash">
-    <div id="admin-login" class="card center-card hidden">
-      <h2>🏫 管理中心登录</h2>
-      <p class="muted">面向就业指导教师 / 企业 HR。口令加盐哈希存储于服务端，登录后签发 2 小时会话令牌（5 次失败将锁定 10 分钟）。</p>
-      <p class="muted small">默认口令 mockmirror2026，可用环境变量 ADMIN_PASS 或 data/db.json（哈希）修改</p>
-      <div class="row" style="justify-content:center;margin-top:14px">
-        <input id="admin-pass" type="password" placeholder="管理员口令" onkeydown="if(event.key==='Enter')adminLogin()">
-        <button class="btn primary" onclick="adminLogin()">登录</button>
-      </div>
-      <p id="admin-login-err" class="small" style="color:var(--danger);margin-top:8px"></p>
+  <section class="card">
+    <h2>添加自己的面试题</h2>
+    <p class="muted">下载当前岗位的 JSON 模板，按示例填写题干、考察点和参考材料。先校验预览，再保存到本机题库；重复题目会自动跳过。</p>
+    <div class="row">
+      <button class="btn ghost" onclick="downloadBankTemplate()">下载标准模板</button>
+      <label class="btn ghost" for="bank-file">选择 JSON 文件</label>
+      <input id="bank-file" type="file" accept=".json,application/json" onchange="readBankFile(this)" class="hidden">
+      <a class="btn ghost" href="/guides/question-import.md" target="_blank" rel="noopener">格式说明</a>
     </div>
-    <div id="admin-dash" class="hidden"></div>
-  </section>
-
-  <section id="atab-students" class="hidden"></section>
-
-  <section id="atab-audits" class="hidden"></section>
-
-  <section id="atab-bank" class="hidden">
-    <div class="card">
-      <h2>岗位题库</h2>
-      <div class="row">
-        <select id="ab-bank-sel" onchange="renderBankDetail()"></select>
-        <span id="ab-bank-meta" class="muted small"></span>
-      </div>
-      <div id="ab-bank-detail"></div>
+    <textarea id="bank-json" rows="9" style="width:100%;margin-top:14px;font-family:monospace" placeholder="也可直接在这里粘贴完整 JSON" oninput="resetBankImport()"></textarea>
+    <div class="row" style="margin-top:12px">
+      <button id="bank-check" class="btn ghost" onclick="previewBankImport()">校验并预览</button>
+      <button id="bank-save" class="btn primary" onclick="saveBankImport()" disabled>保存到本地题库</button>
     </div>
-    <div class="card">
-      <h2>➕ 导入企业自定义题库（JSON）</h2>
-      <p class="muted small">格式：<code>{"name":"岗位名","intro":"简介","skills":["技能"],"questions":[{"type":"tech|project|scenario|behavior","text":"题干","keywords":["考察关键词"],"points":["要点"]}]}</code>，至少 3 题。导入后学员首页即可选择该岗位。</p>
-      <textarea id="ab-import" rows="8" placeholder='{"name":"Golang 后端工程师","questions":[{"type":"tech","text":"...","keywords":["goroutine","channel"]}]}'></textarea>
-      <div class="row" style="margin-top:10px">
-        <button class="btn primary" onclick="importBank()">导入题库</button>
-        <button class="btn ghost" onclick="fillBankTemplate()">填入示例模板</button>
-        <span id="ab-import-result" class="small"></span>
-      </div>
-    </div>
+    <p id="bank-import-status" class="muted small" role="status" aria-live="polite"></p>
+    <div id="bank-import-preview"></div>
   </section>
 </main>
+
+
 
 <!-- ============ AI 设置弹窗 ============ -->
 <div id="ai-modal" class="modal hidden" onclick="if(event.target===this)closeAISettings()">
