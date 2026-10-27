@@ -106,6 +106,50 @@ async function fetchTarball(url) {
   return FILES.every(f => fs.existsSync(path.join(MODEL_DIR, f)));
 }
 
+/* ---------- 精识别模型（可选，SenseVoice） ----------
+ * 流式模型管实时字幕，SenseVoice 管提交时的二次纠偏（中文准确率更高）。
+ * 下载失败不阻塞：没有它系统照常跑，只是精度略低。 */
+const REFINE_NAME = 'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17';
+const REFINE_DIR = path.join(ROOT, 'vendor', 'asr-model', REFINE_NAME);
+const REFINE_FILES = ['model.int8.onnx', 'tokens.txt'];
+
+async function fetchRefineModel() {
+  if (REFINE_FILES.every(f => fs.existsSync(path.join(REFINE_DIR, f)))) return true;
+  fs.mkdirSync(REFINE_DIR, { recursive: true });
+  // hf-mirror 单文件优先（国内快且稳）；GitHub Release 整包兜底
+  const mirrors = [
+    `https://hf-mirror.com/csukuangfj/${REFINE_NAME}/resolve/main`,
+    `https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/${REFINE_NAME}.tar.bz2`
+  ];
+  for (const url of mirrors) {
+    try {
+      if (url.endsWith('.tar.bz2')) {
+        const tmp = path.join(REFINE_DIR, 'model.tar.bz2');
+        process.stdout.write('  ↓ 精识别模型整包 … ');
+        await download(url, tmp);
+        console.log((fs.statSync(tmp).size / 1048576).toFixed(0) + ' MB，解压中…');
+        execFileSync('tar', ['-xjf', 'model.tar.bz2'], { cwd: REFINE_DIR, stdio: 'ignore' });
+        try { fs.unlinkSync(tmp); } catch {}
+        const inner = path.join(REFINE_DIR, REFINE_NAME);
+        if (fs.existsSync(inner)) {
+          for (const f of fs.readdirSync(inner)) fs.renameSync(path.join(inner, f), path.join(REFINE_DIR, f));
+          fs.rmSync(inner, { recursive: true, force: true });
+        }
+      } else {
+        for (const f of REFINE_FILES) {
+          process.stdout.write('  ↓ 精识别模型 ' + f + ' … ');
+          await download(`${url}/${f}`, path.join(REFINE_DIR, f));
+          console.log((fs.statSync(path.join(REFINE_DIR, f)).size / 1048576).toFixed(1) + ' MB');
+        }
+      }
+      if (REFINE_FILES.every(f => fs.existsSync(path.join(REFINE_DIR, f)))) return true;
+    } catch (e) {
+      console.log('× 精识别模型下载失败：' + e.message);
+    }
+  }
+  return false;
+}
+
 function installRuntime(pkg) {
   fs.mkdirSync(RUNTIME_DIR, { recursive: true });
   fs.writeFileSync(path.join(RUNTIME_DIR, 'package.json'), '{"name":"mockmirror-asr-runtime","private":true}');
@@ -158,6 +202,13 @@ async function main() {
       console.log('[asr] ✔ 本地离线语音识别引擎安装完成');
     } catch (e) {
       console.log('[asr] 引擎自检未通过，将使用浏览器在线识别：' + e.message);
+    }
+    // 可选增强：精识别模型（提交时二次纠偏，回答更准）
+    try {
+      if (await fetchRefineModel()) console.log('[asr] ✔ 精识别模型（SenseVoice）就绪，回答文本更准');
+      else console.log('[asr] 精识别模型未装成（不影响使用，仅精度略低）；可稍后重跑 npm run setup');
+    } catch (e) {
+      console.log('[asr] 精识别模型安装出错（不影响使用）：' + e.message);
     }
   } else {
     console.log('[asr] 本地引擎未安装成功 —— 不影响使用：Edge 浏览器可用在线识别；' +

@@ -32,8 +32,10 @@
 
   function createEngine(opts) {
     const deviceId = (opts && opts.deviceId) || '';
+    const onRefined = (opts && opts.onRefined) || null;
     let audioCtx = null, source = null, processor = null, stream = null;
     let sessionId = null, stopped = true, pcmQueue = [], sending = false;
+    let stoppedPromise = null;   // stop() 后 resolve（等待服务端精识别回填最终文本）
 
     const engine = {
       onstart: null, onresult: null, onerror: null, onend: null,
@@ -91,11 +93,12 @@
       },
 
       stop() {
-        if (stopped) return;
+        if (stopped) return Promise.resolve();
         stopped = true;
-        flushPcm(true);   // 把尾巴上的音频发完
-        teardown();
+        stoppedPromise = flushPcm(true).catch(() => {});
+        stoppedPromise.then(() => teardown());
         if (engine.onend) engine.onend();
+        return stoppedPromise;
       }
     };
 
@@ -108,12 +111,22 @@
     }
 
     async function flushPcm(isLast) {
+      // 收尾时若上一片还在发：等它发完再收，保证尾巴不丢
+      if (isLast && sending) {
+        await new Promise(r => setTimeout(r, 40));
+        return flushPcm(true);
+      }
       if (sending || !pcmQueue.length || !sessionId) {
-        if (isLast && sessionId) {
-          fetch('/api/asr/end', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: sessionId })
-          }).catch(() => {});
+        if (isLast && sessionId && !sending && !pcmQueue.length) {
+          // 收尾：通知服务端结束，取回精识别全文（SenseVoice 二次识别，更准）
+          try {
+            const r = await fetch('/api/asr/end', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: sessionId })
+            });
+            const j = await r.json().catch(() => ({}));
+            if (j && j.text && onRefined) onRefined(j.text);
+          } catch { /* 精识别失败无感，用流式文本照常提交 */ }
         }
         return;
       }
@@ -145,7 +158,7 @@
         if (!stopped && engine.onerror) engine.onerror({ error: 'local-asr-down' });
       } finally {
         sending = false;
-        if (pcmQueue.length && !stopped) flushPcm(false);
+        if (pcmQueue.length) flushPcm(stopped);   // stopped 时继续收尾，把剩余尾巴和 end 请求发完
       }
     }
 

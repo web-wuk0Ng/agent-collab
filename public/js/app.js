@@ -879,15 +879,19 @@ async function askInterviewer(text) {
 
 async function submitAnswer(fromVoice) {
   const input = $('answer-input');
-  const text = input.value.trim();
-  if (!text) return toast(state.reverseMode ? '请先说出你想反问的问题' : '请先开口作答');
   if (!state.session) return;
   if (submitLock) return;
   submitLock = true;
   clearTimeout(autoSubmitTimer);
 
-  // 语音自动提交：先安静地停掉收音，避免把面试官的话也录进去
-  if (recog || listenState) quietStopListening();
+  // 说完的瞬间就把"最终预取"发出去：服务端会先等这次预取落地再作答，说完即回不卡顿
+  prefetchNow();
+
+  // 语音提交：停收音并等服务端精识别回填最终文本（本地二次识别，通常 ≤1s）
+  if (recog || listenState) await stopListeningFinal();
+
+  const text = input.value.trim();
+  if (!text) { submitLock = false; return toast(state.reverseMode ? '请先说出你想反问的问题' : '请先开口作答'); }
 
   // 反问环节：候选人提问，面试官回答
   if (state.reverseMode) {
@@ -983,7 +987,8 @@ let levelRaf = null;      // 收音音量条动画
  */
 const END_MARKERS = [
   // 明确的收尾
-  '就这样', '就这些', '大概就是这些', '大概就这些', '就是这些', '我的回答完了', '回答完毕',
+  '就这样', '就这样吧', '就这样了', '就这些', '大概就是这些', '大概就这些', '就是这些', '我的回答完了', '回答完毕',
+  '我说完了', '我说完了这些', '反正就这样', '总之就是这样', '我知道的就这些', '我就会这些', '我了解的就这些',
   '说完了', '讲完了', '以上', '以上这些', '差不多了', '差不多就这样', '先这样', '没了', '没有了',
   '差不多了吧', '就这么多', '大概这么多', '这是我目前能想到的', '暂时就这些', '讲到这里',
   '说这么多', '就先说这些', '我先说这么多', '内容大概是这样', '情况就是这样', '基本就是这样',
@@ -1032,6 +1037,30 @@ async function runPrefetch() {
     });
   } catch { /* 预取失败无感，正式提交照常走 */ }
   finally { prefetching = false; }
+}
+
+/** 说完即发的"最终预取"：跳过防抖与长度门槛，把结尾几个字也纳入预取。
+ *  服务端收到正式提交时会先等这次预取落地 → 说完到面试官开口几乎零等待。 */
+function prefetchNow() {
+  if (!state.session) return;
+  const text = $('answer-input').value.trim();
+  if (text.length < 2) return;
+  lastPrefetchLen = text.length;
+  prefetching = true;
+  API('/api/interview/prefetch', {
+    sessionId: state.session.id,
+    qIndex: state.session.currentQ.index,
+    answer: text
+  }).catch(() => {}).finally(() => { prefetching = false; });
+}
+
+/** 提交前停收音：额外等待 /api/asr/end 的精识别回填（无本地引擎时立即返回） */
+async function stopListeningFinal() {
+  const eng = recog;
+  quietStopListening();
+  if (eng && eng.stoppedPromise) {
+    try { await Promise.race([eng.stoppedPromise, new Promise(r => setTimeout(r, 2500))]); } catch {}
+  }
 }
 const TURN_NUDGE_MAX = 3;          // 每道题面试官最多主动引导 3 次，之后安静等你
 
@@ -1196,7 +1225,16 @@ function startListening({ auto = false } = {}) {
 
   let r;
   if (useLocal) {
-    r = LocalASR.createEngine({ deviceId: micDeviceId });
+    r = LocalASR.createEngine({
+      deviceId: micDeviceId,
+      onRefined: t => {
+        // 提交前精识别回填：用服务端 SenseVoice 全文替换流式文本（更准、带标点）
+        if (!t) return;
+        input.value = punctuate(t, { final: true });
+        if (listenState) listenState.lastFinal = '';
+        renderVoice('');
+      }
+    });
   } else {
     r = new SR();
     r.lang = 'zh-CN';
@@ -1675,21 +1713,37 @@ function cleanupMeeting() {
 
 async function finishInterview(auto = false) {
   if (!state.session) return;
+  if (!auto && !window.confirm('确定要结束面试吗？结束后将生成本场评估报告。')) return;
   const sess = state.session;
+  // 想结束就立刻结束：先停一切采集与播放，马上切到报告页，报告在后台生成完自动渲染
+  const videoMetrics = (sess.mode === 'video' && camStream) ? VisionMonitor.summary() : null;
+  cleanupMeeting();
+  state.session = null;
+  pending = null;
+  state.lastReportSessionId = sess.id;
+  go('report');
+  renderReportLoading();
   try {
-    const videoMetrics = (sess.mode === 'video' && camStream) ? VisionMonitor.summary() : null;
     const { report, transcript } = await API('/api/interview/finish', { sessionId: sess.id, videoMetrics });
     // 报告收尾阶段：评估官与陪练官并行工作过，点亮角色卡（若用户打开过工作台）
     markAgentLive('evaluator');
     markAgentLive('coach');
-    state.lastReportSessionId = sess.id;
-    state.session = null;
-    pending = null;
-    cleanupMeeting();
     renderReport(report, null, transcript);
-    go('report');
     if (!auto) toast('已离开会议，评估报告已生成');
   } catch (e) { toast(e.message); }
+}
+
+/** 报告页加载骨架：结束面试后立即有反馈，不等评估官跑完 */
+function renderReportLoading() {
+  const body = $('report-body');
+  if (!body) return;
+  body.innerHTML = `
+    <section class="card" style="text-align:center;padding:56px 24px;">
+      <div style="font-size:44px;">🧠</div>
+      <h2 style="margin:12px 0 6px;">面试已结束</h2>
+      <p class="muted">评估官正在逐题复核，陪练官正在制定提升计划…<br>通常十几秒内完成，页面会自动刷新。</p>
+      <div class="rep-loading-bar"><span></span></div>
+    </section>`;
 }
 
 function scoreClass(s) { return s >= 80 ? 's-good' : s >= 60 ? 's-mid' : 's-low'; }

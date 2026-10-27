@@ -18,6 +18,7 @@ const WAV = path.resolve('test/fixtures/answer-with-gap.wav');
   });
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ['camera', 'microphone'] });
   const page = await ctx.newPage();
+  page.on('dialog', d => d.accept().catch(() => {}));   // 结束面试的确认弹窗自动确认
   await page.addInitScript(() => localStorage.setItem('mm.asr.prefer', 'local'));   // 测试环境固定走本地引擎
   const errors = [];
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));

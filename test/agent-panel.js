@@ -20,6 +20,7 @@ const ANSWERS = [
   });
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ['camera', 'microphone'] });
   const page = await ctx.newPage();
+  page.on('dialog', d => d.accept().catch(() => {}));   // 结束面试的确认弹窗自动确认
   const errors = [];
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });

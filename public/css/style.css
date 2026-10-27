@@ -662,3 +662,8 @@ table.rep-table th { color: var(--ink-2); font-weight: 600; font-size: 12.5px; }
 }
 .pj-voice-result b { color: #ffd166; }
 .vr-live { color: #7ee787; }
+
+/* 报告生成中的加载骨架（结束面试后立即反馈） */
+.rep-loading-bar { width: 240px; height: 6px; margin: 22px auto 0; border-radius: 3px; background: #eef1f7; overflow: hidden; }
+.rep-loading-bar span { display: block; height: 100%; width: 40%; border-radius: 3px; background: var(--primary, #0abd72); animation: repload 1.2s ease-in-out infinite; }
+@keyframes repload { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
