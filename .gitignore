@@ -47,3 +47,6 @@ Thumbs.db
 # 本地语音识别引擎（首启自动下载，不入库）
 vendor/asr-runtime/
 vendor/asr-model/
+
+# slidep 工程缓存
+.slidep/
