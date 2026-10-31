@@ -386,6 +386,28 @@ body.in-meeting .topbar { display: none; }
 .mtg-side .chat-input { border-top: 1px solid var(--line); padding: 12px 14px; }
 /* 纯语音作答面板：实时字幕 + 自动提交 */
 .voice-panel { display: flex; flex-direction: column; gap: 8px; }
+.answer-budget { color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 12px; }
+.budget-head { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+.answer-budget progress { display: block; width: 100%; height: 6px; border: 0; border-radius: 4px; overflow: hidden; appearance: none; margin-bottom: 6px; }
+.answer-budget progress::-webkit-progress-bar { background: #e7e9ed; }
+.answer-budget progress::-webkit-progress-value { background: var(--primary); transition: width .4s; }
+.answer-budget progress::-moz-progress-bar { background: var(--primary); }
+.answer-budget.warning { color: #ad6800; }
+.answer-budget.warning progress::-webkit-progress-value { background: #d48806; }
+.answer-budget.warning progress::-moz-progress-bar { background: #d48806; }
+.question-rescue { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 6px; }
+.question-rescue .btn { flex: 1; min-width: 78px; white-space: nowrap; }
+/* 完整题目只保留在对话中，舞台不再复制同一句字幕。 */
+#ai-caption { display: none !important; }
+.report-stages { display: flex; justify-content: center; flex-wrap: wrap; gap: 18px; margin: 24px 0; }
+.report-stages span { color: #9aa3b5; animation: reportStage 1.2s ease forwards; }
+.report-stages span:nth-child(2) { animation-delay: .6s; }
+.report-stages span:nth-child(3) { animation-delay: 1.2s; }
+.report-stages span:nth-child(4) { animation-delay: 1.8s; }
+@keyframes reportStage { to { color: var(--primary); } }
+.report-reveal > :not(:first-child) { animation: reportReveal .6s .65s both; }
+@keyframes reportReveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .report-stages span, .report-reveal > :not(:first-child) { animation: none; color: inherit; } }
 .voice-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .voice-state { font-size: 12.5px; font-weight: 600; color: #9aa1ac; display: inline-flex; align-items: center; gap: 6px; }
 .voice-state.live { color: var(--primary); }
@@ -589,24 +611,6 @@ table.rep-table th { color: var(--ink-2); font-weight: 600; font-size: 12.5px; }
 .modal-box label { display: block; font-size: 13.5px; color: var(--ink-2); margin: 12px 0 4px; }
 .modal-box input { width: 100%; }
 
-/* ---------- 管理中心 ---------- */
-.admin-tabs { margin-bottom: 18px; align-items: center; }
-.admin-tabs .flex1 { flex: 1; }
-.btn.tab { border-radius: 10px; }
-.btn.tab.active { background: var(--primary); color: #fff; }
-.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 18px; }
-.stat-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; text-align: center; }
-.stat-card b { font-size: 30px; color: var(--primary); display: block; }
-.stat-card span { color: var(--ink-2); font-size: 13px; }
-.admin-two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-@media (max-width: 800px) { .admin-two { grid-template-columns: 1fr; } }
-#ab-import { width: 100%; font-family: Consolas, monospace; font-size: 12.5px; }
-.q-item { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-top: 10px; background: #fbfcfe; }
-.q-item .q-meta { font-size: 12px; color: var(--ink-2); }
-.jd-box { width: 100%; margin: 4px 0 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: #fbfcfe; }
-.jd-box summary { cursor: pointer; color: var(--primary); font-weight: 600; font-size: 14px; }
-.jd-box textarea { width: 100%; margin-top: 10px; }
-
 /* ---------- AI 配置门禁提示条 ---------- */
 .ai-warn {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -647,7 +651,7 @@ table.rep-table th { color: var(--ink-2); font-weight: 600; font-size: 12.5px; }
 /* ---------- 真人数字人面试官 ---------- */
 .ai-avatar { width: 176px; height: 176px; overflow: hidden; padding: 0; }
 .iv-photo { width: 100%; height: 100%; object-fit: cover; object-position: center 14%; border-radius: 50%; display: block; }
-.tile-ai.speaking .iv-photo { animation: ivTalkPulse 1.1s ease-in-out infinite; }
+.iv-photo.talking { animation: ivTalkPulse 1.1s ease-in-out infinite; }
 @keyframes ivTalkPulse {
   0%, 100% { transform: scale(1); filter: brightness(1); }
   50% { transform: scale(1.02); filter: brightness(1.07); }

@@ -977,6 +977,389 @@
         "CR 与测试"
       ],
       "hint": "讲可维护性实践：清晰命名与结构、关键逻辑注释、README 与示例、CR 与必要测试，体现团队意识。"
+    },
+    {
+      "id": "ext20261027_1",
+      "type": "tech",
+      "stage": "core",
+      "text": "React 事件处理函数里的 state 为什么可能是旧值？连续三次 setCount(count + 1) 会怎样？",
+      "keywords": [
+        "React",
+        "state",
+        "快照",
+        "函数更新"
+      ],
+      "points": [
+        "理解每次渲染的快照",
+        "区分替换和函数更新",
+        "避免闭包误判"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：理解每次渲染的快照；区分替换和函数更新；避免闭包误判。",
+      "reference": "每次渲染生成的事件处理器读取该次渲染的状态快照。多次基于同一旧值计算的替换更新不等于连续递增；依赖前一个结果时可使用函数式更新，不能把状态当成同步可变变量。",
+      "sources": [
+        "https://react.dev/learn/state-as-a-snapshot"
+      ]
+    },
+    {
+      "id": "ext20261027_2",
+      "type": "scenario",
+      "stage": "core",
+      "text": "组件卸载后异步请求才返回，或搜索结果乱序覆盖，你会怎样防止过期结果更新页面？",
+      "keywords": [
+        "React",
+        "cleanup",
+        "请求竞态"
+      ],
+      "points": [
+        "使旧结果失效",
+        "中止可中止请求",
+        "检查当前请求身份"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：使旧结果失效；中止可中止请求；检查当前请求身份。",
+      "reference": "异步响应顺序不一定等于发起顺序。清理时使旧请求失效，回填前核对请求身份；可配合 AbortController 中止工作，但仍应对无法中止或已完成的响应做过期检查。",
+      "sources": [
+        "https://react.dev/learn/synchronizing-with-effects"
+      ]
+    },
+    {
+      "id": "ext20261027_3",
+      "type": "tech",
+      "stage": "core",
+      "text": "React 开发环境里 Effect 会额外执行一次，为什么只加一个全局标记并不是可靠修复？",
+      "keywords": [
+        "Effect",
+        "StrictMode",
+        "清理"
+      ],
+      "points": [
+        "让初始化和清理对称",
+        "正确依赖",
+        "支持重新挂载"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：让初始化和清理对称；正确依赖；支持重新挂载。",
+      "reference": "开发检查帮助发现 Effect 未清理的问题。订阅、连接和定时器应在清理时释放；通过全局标记阻止再次运行可能掩盖泄漏，并破坏多个实例或重新挂载时的正确行为。",
+      "sources": [
+        "https://react.dev/learn/synchronizing-with-effects"
+      ]
+    },
+    {
+      "id": "ext20261027_4",
+      "type": "tech",
+      "stage": "core",
+      "text": "Vue computed 为什么不适合发请求或修改其他响应式状态？watch 和 watchEffect 如何取舍？",
+      "keywords": [
+        "computed",
+        "watch",
+        "watchEffect"
+      ],
+      "points": [
+        "保持计算纯粹",
+        "区分显式与自动依赖",
+        "清理副作用"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：保持计算纯粹；区分显式与自动依赖；清理副作用。",
+      "reference": "computed 主要用于派生数据，getter 应避免副作用。watch 可以明确指定来源，watchEffect 根据同步读取收集依赖；涉及异步请求时应处理清理和过期结果，不能让旧请求覆盖新状态。",
+      "sources": [
+        "https://vuejs.org/guide/essentials/computed"
+      ]
+    },
+    {
+      "id": "ext20261027_5",
+      "type": "scenario",
+      "stage": "deep",
+      "text": "深层 watch 导致大表单卡顿，你会怎样缩小依赖范围并验证不是漏掉必要更新？",
+      "keywords": [
+        "Vue",
+        "deep",
+        "watch",
+        "性能"
+      ],
+      "points": [
+        "关注具体字段",
+        "评估深遍历成本",
+        "用交互用例验证"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：关注具体字段；评估深遍历成本；用交互用例验证。",
+      "reference": "深层侦听可能需要遍历大量嵌套属性。应根据真实业务选择具体字段或派生值，避免对整份大对象无差别侦听；用表单交互回归和性能测量同时检查更新正确性与开销。",
+      "sources": [
+        "https://vuejs.org/guide/essentials/watchers.html"
+      ]
+    },
+    {
+      "id": "ext20261027_6",
+      "type": "tech",
+      "stage": "core",
+      "text": "AbortController 取消 fetch 后，为什么业务代码仍需要检查当前请求是否已过期？",
+      "keywords": [
+        "AbortController",
+        "请求身份",
+        "竞态"
+      ],
+      "points": [
+        "理解取消边界",
+        "区分中止和业务错误",
+        "阻止旧结果提交"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：理解取消边界；区分中止和业务错误；阻止旧结果提交。",
+      "reference": "中止信号可通知支持它的操作停止，但无法撤销已经完成的业务副作用。页面还需以请求标识或版本判断响应是否有效，并把中止与普通失败分开处理，避免误报或覆盖新结果。",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortController"
+      ]
+    },
+    {
+      "id": "ext20261027_7",
+      "type": "scenario",
+      "stage": "core",
+      "text": "用户快速切换十个搜索条件，你会如何组合防抖、请求取消与结果缓存？",
+      "keywords": [
+        "防抖",
+        "取消",
+        "缓存"
+      ],
+      "points": [
+        "区分减少请求和保证正确",
+        "缓存键包含条件",
+        "处理过期"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：区分减少请求和保证正确；缓存键包含条件；处理过期。",
+      "reference": "防抖减少发起次数，取消减少无效在途工作，响应版本检查保证提交结果的正确性。缓存键需要包含所有影响结果的条件；命中缓存时仍要处理过期和刷新，三者各有职责。",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortController"
+      ]
+    },
+    {
+      "id": "ext20261027_8",
+      "type": "tech",
+      "stage": "core",
+      "text": "SSE 和 WebSocket 的通信方向有什么不同？大模型逐字输出为什么常用 SSE？",
+      "keywords": [
+        "SSE",
+        "EventSource",
+        "单向"
+      ],
+      "points": [
+        "区分通信模型",
+        "解释事件流格式",
+        "清理连接"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：区分通信模型；解释事件流格式；清理连接。",
+      "reference": "SSE 适合服务端持续向浏览器推送文本事件，标准 EventSource 主要是一条服务端到客户端的单向连接。双向高频通信可评估 WebSocket；无论何种方式都需要处理断线、资源清理与界面状态。",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events"
+      ]
+    },
+    {
+      "id": "ext20261027_9",
+      "type": "scenario",
+      "stage": "deep",
+      "text": "流式回复断线后重连，如何防止同一段内容被追加两次？",
+      "keywords": [
+        "SSE",
+        "event",
+        "id",
+        "去重"
+      ],
+      "points": [
+        "标识事件",
+        "定义续传范围",
+        "处理重复和缺口"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：标识事件；定义续传范围；处理重复和缺口。",
+      "reference": "流式协议应给事件稳定标识，客户端记录已处理位置；重连后按合同续传并去重，发现缺口则明确补齐或重置。不能仅依赖字符串前缀猜测，因为重复词句可能本来就是合法内容。",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events"
+      ]
+    },
+    {
+      "id": "ext20261027_10",
+      "type": "tech",
+      "stage": "core",
+      "text": "IndexedDB 与 localStorage 相比有哪些能力差异？保存离线面试草稿时你会选哪一个？",
+      "keywords": [
+        "IndexedDB",
+        "事务",
+        "异步"
+      ],
+      "points": [
+        "比较同步和异步",
+        "说明结构化数据",
+        "考虑配额和失败"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：比较同步和异步；说明结构化数据；考虑配额和失败。",
+      "reference": "IndexedDB 适合异步存储较复杂的结构化数据并支持事务。localStorage 接口简单但同步；实际草稿功能还应处理存储配额、写入失败、版本升级与用户清理，不能默认本地数据永不丢失。",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API"
+      ]
+    },
+    {
+      "id": "ext20261027_11",
+      "type": "scenario",
+      "stage": "deep",
+      "text": "离线缓存升级时旧数据结构仍在，怎样设计 IndexedDB 的版本迁移和失败恢复？",
+      "keywords": [
+        "IndexedDB",
+        "versionchange",
+        "迁移"
+      ],
+      "points": [
+        "明确版本变更路径",
+        "协调旧连接",
+        "保留可恢复状态"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：明确版本变更路径；协调旧连接；保留可恢复状态。",
+      "reference": "数据库升级应在规定的版本变更流程中进行，并处理其他标签页持有旧连接的情况。迁移需兼容从多个旧版本升级，失败时保留可恢复数据；不要把清空所有历史作为默认迁移策略。",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API"
+      ]
+    },
+    {
+      "id": "ext20261027_12",
+      "type": "tech",
+      "stage": "core",
+      "text": "把大 JSON 解析和计算放进 Web Worker，是否一定更快？数据复制与 Transferable 有什么影响？",
+      "keywords": [
+        "Worker",
+        "结构化克隆",
+        "Transferable"
+      ],
+      "points": [
+        "区分响应性和总耗时",
+        "计算通信成本",
+        "理解所有权转移"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：区分响应性和总耗时；计算通信成本；理解所有权转移。",
+      "reference": "Worker 可把计算移出主线程，改善交互响应，但通信和数据处理也有成本。消息通常经过结构化克隆；支持转移的数据可以避免部分复制，但转移后原侧的访问能力会改变，需要明确所有权。",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers"
+      ]
+    },
+    {
+      "id": "ext20261027_13",
+      "type": "scenario",
+      "stage": "deep",
+      "text": "富文本导入功能要显示用户填写的题干，如何避免把恶意标签当成页面执行？",
+      "keywords": [
+        "XSS",
+        "textContent",
+        "CSP"
+      ],
+      "points": [
+        "优先按文本输出",
+        "区分转义与净化",
+        "把 CSP 作为额外防线"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：优先按文本输出；区分转义与净化；把 CSP 作为额外防线。",
+      "reference": "纯文字内容应通过安全的文本接口或上下文正确的转义输出。必须支持富文本时使用经过验证的净化方案；CSP 可降低某些注入后果，但不能代替安全的内容处理和可信资源策略。",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP"
+      ]
+    },
+    {
+      "id": "ext20261027_14",
+      "type": "tech",
+      "stage": "core",
+      "text": "前端接口响应声明成 TypeScript 类型后，运行时就安全吗？unknown 比 any 好在哪里？",
+      "keywords": [
+        "unknown",
+        "any",
+        "类型收窄"
+      ],
+      "points": [
+        "区分编译与运行时",
+        "验证外部输入",
+        "通过守卫收窄"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：区分编译与运行时；验证外部输入；通过守卫收窄。",
+      "reference": "TypeScript 的类型声明不会自动校验网络输入。unknown 迫使使用前先检查和收窄，而 any 会绕过许多检查；外部 JSON 应经过运行时结构和字段校验，再进入业务逻辑。",
+      "sources": [
+        "https://www.typescriptlang.org/docs/handbook/2/narrowing.html"
+      ]
+    },
+    {
+      "id": "ext20261027_15",
+      "type": "scenario",
+      "stage": "core",
+      "text": "页面并发加载五块互相独立的数据，一块失败不该拖垮整页，Promise.allSettled 怎样使用？",
+      "keywords": [
+        "allSettled",
+        "部分失败",
+        "降级"
+      ],
+      "points": [
+        "区分全部成功与全部完成",
+        "保留结果对应关系",
+        "设计局部重试"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：区分全部成功与全部完成；保留结果对应关系；设计局部重试。",
+      "reference": "allSettled 会收集每个输入的完成状态，适合互不依赖的模块分别展示成功与失败。需要将结果和原模块正确对应，给失败块提供重试；不能把失败结果当成正常数据参与汇总。",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled"
+      ]
+    },
+    {
+      "id": "ext20261027_16",
+      "type": "project",
+      "stage": "deep",
+      "text": "你优化了实验室里的性能分数，但真实用户仍觉得慢，会怎样结合 Web Vitals 和现场数据继续定位？",
+      "keywords": [
+        "Web",
+        "Vitals",
+        "INP",
+        "现场数据"
+      ],
+      "points": [
+        "区别实验室和真实用户",
+        "按设备网络分组",
+        "观察分位数"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：区别实验室和真实用户；按设备网络分组；观察分位数。",
+      "reference": "实验室测试便于复现，现场数据反映真实设备、网络和交互。应分群观察加载、交互与视觉稳定性，并检查分位数和异常样本；一次高分不能证明所有用户的实际体验都已改善。",
+      "sources": [
+        "https://web.dev/articles/vitals"
+      ]
+    },
+    {
+      "id": "ext20261027_17",
+      "type": "tech",
+      "stage": "deep",
+      "text": "Vue 大列表中给每一行传入新对象，为什么可能导致无谓更新？你会怎样保持 props 稳定？",
+      "keywords": [
+        "Vue",
+        "props",
+        "稳定",
+        "更新"
+      ],
+      "points": [
+        "识别引用变化",
+        "减少不必要依赖",
+        "用分析工具验证"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：识别引用变化；减少不必要依赖；用分析工具验证。",
+      "reference": "父组件更新时，如果大量子组件接收的 props 不稳定，就可能扩大更新范围。应将真正变化的状态与稳定数据分开，并在测量后采用适合的优化；不要在未定位瓶颈时添加复杂缓存。",
+      "sources": [
+        "https://vuejs.org/guide/best-practices/performance"
+      ]
+    },
+    {
+      "id": "ext20261027_18",
+      "type": "project",
+      "stage": "core",
+      "text": "为面试页面设计一个请求状态机，你会怎样处理开始、取消、失败重试和迟到响应？",
+      "keywords": [
+        "状态机",
+        "取消",
+        "迟到响应"
+      ],
+      "points": [
+        "定义合法转换",
+        "请求绑定会话",
+        "验证结束后的行为"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：定义合法转换；请求绑定会话；验证结束后的行为。",
+      "reference": "页面请求应绑定明确的会话或请求版本。取消或结束后，使旧回调失效并释放定时器与监听；对开始、完成、失败和重试定义合法转换，再用迟到响应等时序用例验证。",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortController"
+      ]
     }
   ]
 }

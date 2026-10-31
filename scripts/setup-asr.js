@@ -1,7 +1,7 @@
 /* scripts/setup-asr.js —— 本地离线语音识别引擎安装（可选、全自动、跨平台）
  *
  * 作用：让 Chrome / 断网环境也能语音面试（浏览器自带的 Web Speech 在国内 Chrome 上不可用）。
- * 安装内容：sherpa-onnx Node 运行时（npm）+ zipformer 中文流式模型，共约 50MB，装在 vendor/（不入库）。
+ * 安装内容：sherpa-onnx Node 运行时（npm）+ zipformer 中文流式模型，共双语约 190MB + 精识别约 230MB，装在 vendor/（不入库）。
  *
  * 设计原则（给别人 clone 后一键跑）：
  *   1) 全自动、跨平台：按 os/arch 选对应的原生包（不再只装 win-x64）
@@ -18,13 +18,14 @@ const { execFileSync, execSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const RUNTIME_DIR = path.join(ROOT, 'vendor', 'asr-runtime');
-const MODEL_NAME = 'sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23';
+const MODEL_NAME = 'sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20';
 const MODEL_DIR = path.join(ROOT, 'vendor', 'asr-model', MODEL_NAME);
 const FILES = [
   'encoder-epoch-99-avg-1.int8.onnx',
   'decoder-epoch-99-avg-1.int8.onnx',
   'joiner-epoch-99-avg-1.int8.onnx',
-  'tokens.txt'
+  'tokens.txt',
+  'bpe.vocab'
 ];
 const VERSION = '1.13.8';
 
@@ -176,9 +177,9 @@ async function main() {
   }
   const runtimeOk = fs.existsSync(path.join(RUNTIME_DIR, 'node_modules', 'sherpa-onnx-node'));
   const modelOk = FILES.every(f => fs.existsSync(path.join(MODEL_DIR, f)));
-  if (runtimeOk && modelOk) { console.log('[asr] 本地识别引擎已就绪，跳过安装'); return; }
+  if (runtimeOk && modelOk && REFINE_FILES.every(f => fs.existsSync(path.join(REFINE_DIR, f)))) { console.log('[asr] 双语与精识别引擎已就绪，跳过安装'); return; }
 
-  console.log('[asr] 首次使用：安装本地离线语音识别引擎（约 50MB，装一次即可）…');
+  console.log('[asr] 首次使用：安装本地离线语音识别引擎（双语约 190MB + 精识别约 230MB，装一次即可）…');
 
   let ok = runtimeOk;
   if (!ok) {
@@ -191,7 +192,7 @@ async function main() {
   }
   let modelOkNow = modelOk;
   if (ok && !modelOkNow) {
-    console.log('[asr] 下载中文识别模型…');
+    console.log('[asr] 下载中英双语识别模型（含技术热词词表）…');
     modelOkNow = await fetchModels();
   }
 

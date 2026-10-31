@@ -979,6 +979,385 @@
         "记录与复盘"
       ],
       "hint": "讲方法论：先验证实现与数据、再做最小实验逐项排除、坚持记录实验日志，用流程对抗不确定性。"
+    },
+    {
+      "id": "ext20261027_1",
+      "type": "tech",
+      "stage": "core",
+      "text": "asyncio 的 TaskGroup 和 gather 在子任务失败时有什么不同？什么时候希望快速取消同组任务？",
+      "keywords": [
+        "TaskGroup",
+        "gather",
+        "异常"
+      ],
+      "points": [
+        "比较失败处理",
+        "说明结构化生命周期",
+        "清理资源"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：比较失败处理；说明结构化生命周期；清理资源。",
+      "reference": "TaskGroup 用作用域管理子任务，一项失败时会协调同组任务取消并汇总异常。gather 的默认异常传播与同组取消行为不同；应根据任务是否彼此依赖选择，并确保清理逻辑可在取消时执行。",
+      "sources": [
+        "https://docs.python.org/3.13/library/asyncio-task.html"
+      ]
+    },
+    {
+      "id": "ext20261027_2",
+      "type": "tech",
+      "stage": "core",
+      "text": "协程被取消后，finally 一定可以省略吗？吞掉 CancelledError 会造成什么问题？",
+      "keywords": [
+        "CancelledError",
+        "finally",
+        "取消"
+      ],
+      "points": [
+        "释放资源",
+        "传播取消信号",
+        "区分超时与业务错误"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：释放资源；传播取消信号；区分超时与业务错误。",
+      "reference": "取消是协作式的，会在适当的等待点传递。资源释放应放入可靠的清理路径，通常不应无条件吞掉取消信号，否则上层任务组或超时逻辑可能无法按约定结束。",
+      "sources": [
+        "https://docs.python.org/3.13/library/asyncio-task.html"
+      ]
+    },
+    {
+      "id": "ext20261027_3",
+      "type": "scenario",
+      "stage": "core",
+      "text": "异步接口中混入同步文件处理或阻塞 SDK 调用，为什么整个服务会卡顿？怎样验证和修复？",
+      "keywords": [
+        "asyncio",
+        "to_thread",
+        "阻塞"
+      ],
+      "points": [
+        "识别事件循环阻塞",
+        "区别 I/O 与 CPU",
+        "观察调度延迟"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：识别事件循环阻塞；区别 I/O 与 CPU；观察调度延迟。",
+      "reference": "async 函数里直接调用阻塞操作仍会阻塞事件循环。阻塞 I/O 可考虑转入线程；纯 Python 的 CPU 密集计算还应评估进程等方案。修复后观察并发请求的尾延迟和事件循环延迟。",
+      "sources": [
+        "https://docs.python.org/3.13/library/asyncio-task.html"
+      ]
+    },
+    {
+      "id": "ext20261027_4",
+      "type": "tech",
+      "stage": "core",
+      "text": "为什么先在全量数据上做标准化或特征选择，再划分训练集，会导致评估失真？",
+      "keywords": [
+        "数据泄漏",
+        "Pipeline",
+        "标准化"
+      ],
+      "points": [
+        "先划分数据",
+        "只在训练数据拟合",
+        "每折独立预处理"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：先划分数据；只在训练数据拟合；每折独立预处理。",
+      "reference": "预处理的统计量也是从数据学习得到的。若提前使用测试集信息，评估会过于乐观；应在训练子集拟合变换，并让 Pipeline 把每折预处理与模型训练放在同一验证流程中。",
+      "sources": [
+        "https://scikit-learn.org/stable/common_pitfalls.html"
+      ]
+    },
+    {
+      "id": "ext20261027_5",
+      "type": "scenario",
+      "stage": "deep",
+      "text": "做用户行为预测时，同一用户的记录进入训练集和测试集，可能出现什么偏差？",
+      "keywords": [
+        "GroupKFold",
+        "用户泄漏",
+        "分组"
+      ],
+      "points": [
+        "匹配部署目标",
+        "按实体分组",
+        "比较分组与随机评估"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：匹配部署目标；按实体分组；比较分组与随机评估。",
+      "reference": "如果部署目标是泛化到新用户，随机按记录切分会使同一用户特征泄漏到两侧。应按用户分组划分，并根据真实上线目标选择验证单位，不能把随机划分的高分直接视为泛化能力。",
+      "sources": [
+        "https://scikit-learn.org/stable/modules/cross_validation.html"
+      ]
+    },
+    {
+      "id": "ext20261027_6",
+      "type": "tech",
+      "stage": "core",
+      "text": "时间序列预测为什么不宜直接使用随机 K 折？怎样设计滚动验证？",
+      "keywords": [
+        "时间序列",
+        "滚动验证",
+        "未来信息"
+      ],
+      "points": [
+        "保持时间顺序",
+        "设置训练窗口",
+        "避免未来特征泄漏"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：保持时间顺序；设置训练窗口；避免未来特征泄漏。",
+      "reference": "时间数据应按实际可获得的信息顺序评估。滚动验证使用过去训练、未来验证，并按任务考虑间隔和窗口；特征构造也只能使用预测时已知的信息，防止隐含未来信息。",
+      "sources": [
+        "https://scikit-learn.org/stable/modules/cross_validation.html"
+      ]
+    },
+    {
+      "id": "ext20261027_7",
+      "type": "scenario",
+      "stage": "deep",
+      "text": "一次调参比较了上百个模型，为什么不能根据测试集分数反复决定最终方案？",
+      "keywords": [
+        "测试集",
+        "调参",
+        "过拟合"
+      ],
+      "points": [
+        "区分验证与最终测试",
+        "限制反复窥探",
+        "保留独立评估"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：区分验证与最终测试；限制反复窥探；保留独立评估。",
+      "reference": "反复利用测试结果选模型，相当于把测试集当成了验证集。应在训练和验证流程内进行调参，把最终测试集留作一次相对独立的泛化估计，并记录选择流程。",
+      "sources": [
+        "https://scikit-learn.org/stable/common_pitfalls.html"
+      ]
+    },
+    {
+      "id": "ext20261027_8",
+      "type": "tech",
+      "stage": "core",
+      "text": "设定随机种子后，PyTorch 训练就能在不同设备和版本上完全复现吗？",
+      "keywords": [
+        "随机种子",
+        "确定性",
+        "复现"
+      ],
+      "points": [
+        "控制多个随机源",
+        "记录环境",
+        "说明确定性代价"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：控制多个随机源；记录环境；说明确定性代价。",
+      "reference": "复现实验需要控制 Python、NumPy 和框架等随机源，并记录数据顺序、版本与设备。随机种子不保证跨版本和设备完全一致；某些确定性配置还可能牺牲性能，需要如实说明复现边界。",
+      "sources": [
+        "https://docs.pytorch.org/docs/stable/notes/randomness.html"
+      ]
+    },
+    {
+      "id": "ext20261027_9",
+      "type": "project",
+      "stage": "core",
+      "text": "团队两个人训练同一模型却得到不同结果，你会怎样建立可追溯的实验记录？",
+      "keywords": [
+        "实验记录",
+        "数据版本",
+        "随机种子"
+      ],
+      "points": [
+        "记录配置与环境",
+        "固定数据切分",
+        "保存指标和产物"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：记录配置与环境；固定数据切分；保存指标和产物。",
+      "reference": "实验记录应能够重建数据版本、切分方式、预处理、超参数、随机源、运行环境和模型产物。先核对这些条件，再判断差异来自随机波动还是实现问题，避免仅比较一个最终准确率。",
+      "sources": [
+        "https://docs.pytorch.org/docs/stable/notes/randomness.html"
+      ]
+    },
+    {
+      "id": "ext20261027_10",
+      "type": "tech",
+      "stage": "core",
+      "text": "自动混合精度训练中 autocast 和 GradScaler 分别解决什么问题？",
+      "keywords": [
+        "AMP",
+        "autocast",
+        "GradScaler"
+      ],
+      "points": [
+        "区分计算精度选择与梯度缩放",
+        "识别溢出",
+        "验证收敛"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：区分计算精度选择与梯度缩放；识别溢出；验证收敛。",
+      "reference": "autocast 根据算子选择合适精度，梯度缩放可缓解低精度梯度下溢。是否使用缩放取决于精度格式与训练配置；必须比较数值稳定性和验证指标，不能只用显存下降判断训练正确。",
+      "sources": [
+        "https://docs.pytorch.org/docs/stable/notes/amp_examples.html"
+      ]
+    },
+    {
+      "id": "ext20261027_11",
+      "type": "tech",
+      "stage": "deep",
+      "text": "显存不足时使用梯度累积，loss、清梯度和 optimizer.step 的时机如何安排？",
+      "keywords": [
+        "梯度累积",
+        "有效批量",
+        "optimizer"
+      ],
+      "points": [
+        "明确累积窗口",
+        "按目标缩放损失",
+        "正确清理梯度"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：明确累积窗口；按目标缩放损失；正确清理梯度。",
+      "reference": "梯度累积把多个微批次的梯度合并后再更新参数。应保持损失缩放与有效批量一致，在累积边界执行更新并清梯度；结合混合精度时，还需协调缩放、反缩放和梯度裁剪的时机。",
+      "sources": [
+        "https://docs.pytorch.org/docs/stable/notes/amp_examples.html"
+      ]
+    },
+    {
+      "id": "ext20261027_12",
+      "type": "tech",
+      "stage": "core",
+      "text": "用向量内积检索近邻，为什么不一定等价于余弦相似度？什么时候需要归一化？",
+      "keywords": [
+        "余弦",
+        "内积",
+        "归一化"
+      ],
+      "points": [
+        "区分向量模长与方向",
+        "统一入库和查询处理",
+        "匹配模型度量"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：区分向量模长与方向；统一入库和查询处理；匹配模型度量。",
+      "reference": "内积同时受到向量方向和长度影响。对数据库向量与查询向量都做单位化后，内积可对应余弦相似度；检索度量与训练目标和索引配置必须匹配，不能只在查询端临时归一化。",
+      "sources": [
+        "https://github.com/facebookresearch/faiss/wiki/MetricType-and-distances"
+      ]
+    },
+    {
+      "id": "ext20261027_13",
+      "type": "scenario",
+      "stage": "deep",
+      "text": "更换 Embedding 模型后，为什么不能直接拿新查询向量去搜索旧索引？",
+      "keywords": [
+        "Embedding",
+        "版本",
+        "重建索引"
+      ],
+      "points": [
+        "检查维度和向量空间",
+        "设计双索引切换",
+        "回归检索质量"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：检查维度和向量空间；设计双索引切换；回归检索质量。",
+      "reference": "不同模型生成的向量通常不处在可直接比较的语义空间，即使维度相同也不能默认兼容。应记录模型与预处理版本，重新编码语料并验证检索，再按版本切换查询和索引。",
+      "sources": [
+        "https://github.com/facebookresearch/faiss/wiki/MetricType-and-distances"
+      ]
+    },
+    {
+      "id": "ext20261027_14",
+      "type": "tech",
+      "stage": "core",
+      "text": "关键词检索和向量检索结果分数尺度不同，RRF 怎样把两路结果融合？",
+      "keywords": [
+        "BM25",
+        "向量",
+        "RRF"
+      ],
+      "points": [
+        "解释按排名融合",
+        "使用统一文档标识",
+        "理解召回限制"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：解释按排名融合；使用统一文档标识；理解召回限制。",
+      "reference": "RRF 主要根据各列表中的排名累计贡献，无需直接相加不同尺度的原始分数。融合前需统一文档标识并去重；如果两路都没召回正确文档，融合本身也不能补出缺失证据。",
+      "sources": [
+        "https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion"
+      ]
+    },
+    {
+      "id": "ext20261027_15",
+      "type": "scenario",
+      "stage": "deep",
+      "text": "专业缩写和精确型号经常检索不到，你会怎样判断要增加词法召回、向量召回还是重排？",
+      "keywords": [
+        "混合检索",
+        "缩写",
+        "重排"
+      ],
+      "points": [
+        "建立失败查询集",
+        "分开测召回和排序",
+        "比较延迟成本"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：建立失败查询集；分开测召回和排序；比较延迟成本。",
+      "reference": "先用有标注的失败查询确认正确证据是否进入候选集。精确字符串通常需要词法召回，语义改写可借助向量召回；只有候选已包含证据而排序不足时，重排才是直接的改进点。",
+      "sources": [
+        "https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion"
+      ]
+    },
+    {
+      "id": "ext20261027_16",
+      "type": "project",
+      "stage": "deep",
+      "text": "给现有 RAG 系统增加一批新文档后，你会怎样证明检索质量没有退化？",
+      "keywords": [
+        "RAG",
+        "回归",
+        "标注",
+        "查询集"
+      ],
+      "points": [
+        "固定评估集",
+        "分知识范围和用户问法",
+        "比较召回排序与成本"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：固定评估集；分知识范围和用户问法；比较召回排序与成本。",
+      "reference": "评估需要保留代表性查询和可接受证据标注，对比变更前后的候选命中、排名和响应成本。新增文档可能改变词频或近邻分布，应分别看原知识和新增知识，避免只展示几个成功案例。",
+      "sources": [
+        "https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion"
+      ]
+    },
+    {
+      "id": "ext20261027_17",
+      "type": "scenario",
+      "stage": "core",
+      "text": "多个异步检索工具中只有部分可用，Agent 应直接失败还是返回部分证据？你会如何设计？",
+      "keywords": [
+        "异步检索",
+        "超时",
+        "部分证据"
+      ],
+      "points": [
+        "区分必要与可选工具",
+        "限制总预算",
+        "标记缺失证据"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：区分必要与可选工具；限制总预算；标记缺失证据。",
+      "reference": "是否允许部分成功由任务约束决定。并发工具调用应有各自期限和整体预算，必需证据缺失时应说明无法判断；可选来源失败可以降级，但不能把不完整证据包装成完整结论。",
+      "sources": [
+        "https://docs.python.org/3.13/library/asyncio-task.html"
+      ]
+    },
+    {
+      "id": "ext20261027_18",
+      "type": "tech",
+      "stage": "deep",
+      "text": "在取消推理请求后，为什么 GPU 或远端请求仍可能继续工作？如何限制无效计算？",
+      "keywords": [
+        "取消",
+        "协作式",
+        "中止"
+      ],
+      "points": [
+        "区分调用取消与资源中止",
+        "检查 SDK 支持",
+        "记录剩余任务"
+      ],
+      "hint": "先解释问题边界，再结合项目举例。重点：区分调用取消与资源中止；检查 SDK 支持；记录剩余任务。",
+      "reference": "上层协程取消不必然中止底层计算或已经发出的请求。需要检查执行器、客户端与服务端的中止能力，并限制队列和任务预算；通过取消后的资源曲线及在途任务数验证是否真正释放。",
+      "sources": [
+        "https://docs.python.org/3.13/library/asyncio-task.html"
+      ]
     }
   ]
 }

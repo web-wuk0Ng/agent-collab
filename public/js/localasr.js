@@ -34,11 +34,12 @@
     const deviceId = (opts && opts.deviceId) || '';
     const onRefined = (opts && opts.onRefined) || null;
     let audioCtx = null, source = null, processor = null, stream = null;
-    let sessionId = null, stopped = true, pcmQueue = [], sending = false;
-    let stoppedPromise = null;   // stop() 后 resolve（等待服务端精识别回填最终文本）
+    let sessionId = null, stopped = true, pcmQueue = [];
+    let requestChain = Promise.resolve(), stoppedPromise = null;
 
     const engine = {
       onstart: null, onresult: null, onerror: null, onend: null,
+      get stoppedPromise() { return stoppedPromise; },
 
       async start() {
         stopped = false;
@@ -46,57 +47,63 @@
         const audio = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
         if (deviceId) audio.deviceId = { exact: deviceId };
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ audio });
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio });
+          } catch (e) {
+            if (!deviceId || !['OverconstrainedError', 'NotFoundError'].includes(e.name)) throw e;
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+            });
+          }
+          // 权限弹窗期间可能已经结束面试，拿到的流必须立即释放。
+          if (stopped) { teardown(); return; }
+          try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+          } catch {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          }
+          source = audioCtx.createMediaStreamSource(stream);
+          processor = audioCtx.createScriptProcessor(2048, 1, 1);
+          const nativeRate = audioCtx.sampleRate;
+          processor.onaudioprocess = ev => {
+            if (stopped) return;
+            let data = ev.inputBuffer.getChannelData(0);
+            if (nativeRate !== 16000) {
+              const ratio = nativeRate / 16000;
+              const out = new Float32Array(Math.floor(data.length / ratio));
+              for (let i = 0; i < out.length; i++) out[i] = data[Math.floor(i * ratio)];
+              data = out;
+            }
+            pcmQueue.push(new Float32Array(data));
+            if (pcmQueue.reduce((n, a) => n + a.length, 0) >= 16000 * CHUNK_MS / 1000) flushPcm();
+          };
+          source.connect(processor);
+          processor.connect(audioCtx.destination);
+          if (engine.onstart) engine.onstart();
         } catch (e) {
-          // 指定设备不可用 → 回退默认设备，别让整场面试失去语音
-          if (deviceId && (e.name === 'OverconstrainedError' || e.name === 'NotFoundError')) {
-            try {
-              stream = await navigator.mediaDevices.getUserMedia({
-                audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-              });
-            } catch { stream = null; }
-          }
-          if (!stream) {
-            stopped = true;
-            if (engine.onerror) engine.onerror({ error: 'not-allowed' });
-            if (engine.onend) engine.onend();
-            return;
-          }
+          const wasStopped = stopped;
+          stopped = true;
+          teardown();
+          if (!wasStopped && engine.onerror) engine.onerror({ error: e.name === 'NotAllowedError' ? 'not-allowed' : 'local-asr-down' });
+          if (!wasStopped && engine.onend) engine.onend();
         }
-        try {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-        } catch {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        source = audioCtx.createMediaStreamSource(stream);
-        processor = audioCtx.createScriptProcessor(2048, 1, 1);   // 128ms 一帧，延迟更低
-        const nativeRate = audioCtx.sampleRate;
-        pcmQueue = [];
-
-        processor.onaudioprocess = ev => {
-          if (stopped) return;
-          let data = ev.inputBuffer.getChannelData(0);
-          // 浏览器不保证 16k → 简单线性重采样
-          if (nativeRate !== 16000) {
-            const ratio = nativeRate / 16000;
-            const out = new Float32Array(Math.floor(data.length / ratio));
-            for (let i = 0; i < out.length; i++) out[i] = data[Math.floor(i * ratio)];
-            data = out;
-          }
-          pcmQueue.push(new Float32Array(data));
-          const total = pcmQueue.reduce((s, a) => s + a.length, 0);
-          if (total >= 16000 * CHUNK_MS / 1000) flushPcm(false);
-        };
-        source.connect(processor);
-        processor.connect(audioCtx.destination);
-        if (engine.onstart) engine.onstart();
       },
 
       stop() {
-        if (stopped) return Promise.resolve();
+        if (stoppedPromise) return stoppedPromise;
         stopped = true;
-        stoppedPromise = flushPcm(true).catch(() => {});
-        stoppedPromise.then(() => teardown());
+        // 采集立即释放；尾帧上传和精识别仍严格串行完成。
+        teardown();
+        flushPcm();
+        stoppedPromise = requestChain.then(async () => {
+          if (!sessionId) return;
+          const r = await fetch('/api/asr/end', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: sessionId }), signal: AbortSignal.timeout(10000)
+          });
+          const j = await r.json();
+          if (r.ok && j.text && onRefined) onRefined(j.text);
+        }).catch(() => {});
         if (engine.onend) engine.onend();
         return stoppedPromise;
       }
@@ -110,56 +117,33 @@
       audioCtx = source = processor = stream = null;
     }
 
-    async function flushPcm(isLast) {
-      // 收尾时若上一片还在发：等它发完再收，保证尾巴不丢
-      if (isLast && sending) {
-        await new Promise(r => setTimeout(r, 40));
-        return flushPcm(true);
-      }
-      if (sending || !pcmQueue.length || !sessionId) {
-        if (isLast && sessionId && !sending && !pcmQueue.length) {
-          // 收尾：通知服务端结束，取回精识别全文（SenseVoice 二次识别，更准）
-          try {
-            const r = await fetch('/api/asr/end', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: sessionId })
-            });
-            const j = await r.json().catch(() => ({}));
-            if (j && j.text && onRefined) onRefined(j.text);
-          } catch { /* 精识别失败无感，用流式文本照常提交 */ }
-        }
-        return;
-      }
+    function flushPcm() {
+      if (!pcmQueue.length || !sessionId) return;
       const parts = pcmQueue; pcmQueue = [];
-      const total = parts.reduce((s, a) => s + a.length, 0);
-      const merged = new Float32Array(total);
-      let off = 0;
-      for (const a of parts) { merged.set(a, off); off += a.length; }
+      const total = parts.reduce((n, a) => n + a.length, 0);
       const i16 = new Int16Array(total);
-      for (let i = 0; i < total; i++) {
-        const v = Math.max(-1, Math.min(1, merged[i]));
-        i16[i] = v < 0 ? v * 32768 : v * 32767;
+      let off = 0;
+      for (const part of parts) {
+        for (const sample of part) {
+          const v = Math.max(-1, Math.min(1, sample));
+          i16[off++] = v < 0 ? v * 32768 : v * 32767;
+        }
       }
-      sending = true;
-      try {
+      const pcm = int16ToB64(i16);
+      requestChain = requestChain.then(async () => {
         const r = await fetch('/api/asr/chunk', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: sessionId, pcm: int16ToB64(i16) })
+          body: JSON.stringify({ id: sessionId, pcm }), signal: AbortSignal.timeout(8000)
         });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || 'asr failed');
         if (!stopped && engine.onresult) {
-          // endpoint=true 表示"这一句说完了"（引擎检测到停顿）；此时 text 是本段完整文字，
-          // 其余时刻 text 是同一段的增量结果，仅用于实时字幕预览（不追加，避免重复）
           if (j.endpoint) engine.onresult({ final: j.text || '', interim: '', endpoint: true });
           else if (j.text) engine.onresult({ final: '', interim: j.text, endpoint: false });
         }
-      } catch (e) {
+      }).catch(() => {
         if (!stopped && engine.onerror) engine.onerror({ error: 'local-asr-down' });
-      } finally {
-        sending = false;
-        if (pcmQueue.length) flushPcm(stopped);   // stopped 时继续收尾，把剩余尾巴和 end 请求发完
-      }
+      });
     }
 
     return engine;

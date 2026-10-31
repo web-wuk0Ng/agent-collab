@@ -179,6 +179,11 @@ const routes = {
   },
 
   // 口头指令「换简单一点 / 换难一点」：重述当前题的难度，不消耗题序
+  'POST /api/interview/hint': async (p) => {
+    const s = db.getSession(p.sessionId);
+    if (!s || s.status !== 'ongoing') throw new Error('面试会话不存在或已结束');
+    return interview.hintCurrent(s, { qIndex: p.qIndex | 0 });
+  },
   'POST /api/interview/coach': async (p) => {
     const s = db.getSession(p.sessionId);
     if (!s || s.status !== 'ongoing') throw new Error('面试会话不存在或已结束');

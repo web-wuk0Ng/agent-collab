@@ -1,5 +1,5 @@
 /* test/prefetch-hit.js —— 验证"边说边预取 → 提交命中 → 零等待"链路
- * 模拟真实时序：说话途中发 prefetch → 说完追加结尾词提交 → 服务端应命中预取。
+ * 模拟真实时序：说话途中发 prefetch → 相同文本提交 → 服务端应命中预取。
  */
 const base = 'http://127.0.0.1:3000';
 let pass = 0, fail = 0;
@@ -23,8 +23,8 @@ async function post(p, body) {
   await post('/api/interview/prefetch', { sessionId: sid, qIndex, answer: half });
   console.log(`  预取已发出（耗时 ${Date.now() - t0}ms，后台在跑）`);
 
-  // 2) 候选人补了一句结尾词后提交（提交文本 = 预取文本 + 结尾，前缀关系）
-  const full = half + '，大概就这些。';
+  // 2) 提交完整相同文本（语义有修改时不能复用旧判断）
+  const full = half;
   const t1 = Date.now();
   const r = await post('/api/interview/answer', { sessionId: sid, qIndex, answer: full });
   const ms = Date.now() - t1;

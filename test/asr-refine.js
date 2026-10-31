@@ -22,8 +22,14 @@ async function post(p, body) {
   ok(status.available === true, '本地识别引擎可用');
 
   const buf = fs.readFileSync(wav);
-  // 标准 PCM wav：44 字节头之后是 16kHz 单声道 Int16
-  const pcm = buf.subarray(44);
+  // RIFF 允许 fmt/LIST 等扩展块，不能固定跳过 44 字节。
+  let pcm = null;
+  for (let off = 12; off + 8 <= buf.length;) {
+    const size = buf.readUInt32LE(off + 4);
+    if (buf.toString('ascii', off, off + 4) === 'data') { pcm = buf.subarray(off + 8, off + 8 + size); break; }
+    off += 8 + size + size % 2;
+  }
+  if (!pcm) throw new Error('WAV 缺少 data 块');
   const id = 'asr-test-' + Date.now();
   const CHUNK = 16000 * 2 * 0.16;   // 160ms 一片
   let lastText = '';
@@ -43,6 +49,7 @@ async function post(p, body) {
   } else {
     console.log('  ℹ 精识别模型未安装，本次为纯流式结果（不影响功能）');
   }
+  if (process.env.EXPECT_ASR_TERM) ok((fin.text || '').includes(process.env.EXPECT_ASR_TERM), '最终文本包含技术术语 ' + process.env.EXPECT_ASR_TERM);
 
   console.log(`\n结果：${pass} 通过，${fail} 失败`);
   process.exit(fail ? 1 : 0);

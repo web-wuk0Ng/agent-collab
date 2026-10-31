@@ -99,6 +99,30 @@ class KnowledgeStore:
         self.corpus.clear()
         self._load_banks()
         self._load_knowledge()
+        for position, bank in self.banks.items():
+            chunks = self.corpus.setdefault(position, [])
+            for q in bank.questions:
+                if not q.get("reference"):
+                    continue
+                title = str(q.get("text", ""))
+                text = str(q["reference"]) + "\n考察点：" + "；".join(q.get("points") or [])
+                if q.get("sources"):
+                    text += "\n来源：" + " ".join(q["sources"])
+                tokens = tokenize(title + " " + " ".join(q.get("keywords") or []) + " " + text)
+                tf: dict[str, int] = {}
+                for token in tokens:
+                    tf[token] = tf.get(token, 0) + 1
+                chunks.append(Chunk(title=title, text=text, tf=tf, length=len(tokens)))
+        self._revision = self._file_revision()
+
+    def _file_revision(self) -> tuple:
+        return tuple((str(p), p.stat().st_mtime_ns, p.stat().st_size)
+                     for folder, ext in [("questions", "*.json"), ("knowledge", "*.md")]
+                     for p in sorted((self.dir / folder).glob(ext)))
+
+    def _refresh(self) -> None:
+        if self._file_revision() != self._revision:
+            self.load()
 
     def _load_banks(self) -> None:
         qdir = self.dir / "questions"
@@ -139,6 +163,7 @@ class KnowledgeStore:
     # ---------- 查询 ----------
 
     def positions(self) -> list[dict]:
+        self._refresh()
         return [
             {
                 "id": bank.position,
@@ -151,14 +176,17 @@ class KnowledgeStore:
         ]
 
     def bank(self, position: str) -> Bank | None:
+        self._refresh()
         return self.banks.get(position)
 
     def question(self, position: str, question_id: str) -> dict | None:
+        self._refresh()
         bank = self.banks.get(position)
         return bank.question(question_id) if bank else None
 
     def search(self, position: str, query: str, k: int = 4) -> list[dict]:
         """BM25 检索（k1=1.5, b=0.75，与 Node 端实现一致）。"""
+        self._refresh()
         chunks = self.corpus.get(position) or []
         if not chunks or not query:
             return []
@@ -198,6 +226,7 @@ class KnowledgeStore:
         )
 
     def stats(self) -> dict:
+        self._refresh()
         return {
             "positions": len(self.banks),
             "questions": sum(len(b.questions) for b in self.banks.values()),

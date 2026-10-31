@@ -114,7 +114,7 @@ class InterviewerAgent(BaseAgent):
                             "role": "user",
                             "content": (
                                 f"面试开始。第一道题目是：「{question.get('text', '')}」。"
-                                "请输出开场欢迎语并自然地抛出这道题。"
+                                "请输出简短的开场欢迎语，然后自然地抛出这道题，只提问一次，不要再次复述题干。"
                             ),
                         },
                     ],
@@ -127,7 +127,7 @@ class InterviewerAgent(BaseAgent):
             text = (
                 f"你好，欢迎参加本次模拟面试。我是你的 AI 面试官，今天面试的岗位方向是"
                 f"「{self._position_name(position)}」，大约 {rounds} 个问题。请放轻松，"
-                "尽量把你的思考过程讲清楚。那我们开始第一个问题："
+                f"尽量把你的思考过程讲清楚。那我们开始第一个问题：{question.get('text', '')}"
             )
         return AgentReply(text=text, engine=self.engine, references=[])
 

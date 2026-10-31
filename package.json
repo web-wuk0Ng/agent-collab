@@ -10,7 +10,9 @@
     "test": "node test/ai-safety.js",
     "test:mcp": "node test/mcp.js",
     "test:mcp-live": "node test/mcp-live.js",
-    "mcp": "node mcp/mockmirror-mcp.js"
+    "mcp": "node mcp/mockmirror-mcp.js",
+    "test:bank": "node test/bank-import.js",
+    "test:experience": "node test/interview-experience.js"
   },
   "engines": {
     "node": ">=18"

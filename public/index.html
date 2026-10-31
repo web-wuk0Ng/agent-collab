@@ -244,6 +244,16 @@
                 <button id="btn-mic" class="vbtn mic-idle" onclick="toggleMic()" title="开麦 / 说完提交">🎙</button>
                 <span id="mic-status" class="mic-status">准备就绪</span>
               </div>
+              <div id="answer-budget" class="answer-budget" role="timer" aria-label="本题作答时间预算">
+                <div class="budget-head"><span id="answer-budget-label">作答参考 · 2 分钟</span><b id="answer-budget-time">02:00</b></div>
+                <progress id="answer-budget-progress" max="120" value="0" aria-label="本题已用秒数"></progress>
+                <span id="answer-budget-note" class="small" aria-live="polite">开口后开始计时，时间到后仍可继续回答</span>
+              </div>
+              <div class="question-rescue" aria-label="卡壳时的帮助">
+                <button id="rescue-repeat" class="btn ghost sm" onclick="rescueQuestion('repeat')">再说一遍</button>
+                <button id="rescue-hint" class="btn ghost sm" onclick="rescueQuestion('explain')">给点提示</button>
+                <button id="rescue-skip" class="btn ghost sm" onclick="rescueQuestion('next')">跳过这题</button>
+              </div>
               <textarea id="answer-input" class="hidden" aria-hidden="true"></textarea>
             </div>
           </div>
@@ -305,7 +315,7 @@
       </div>
       <div class="bar-mid">
         <span class="bar-status" id="bar-status">面试进行中</span>
-        <span class="bar-q" id="current-q">-</span>
+        <span class="bar-q hidden" id="current-q" aria-hidden="true">-</span>
         <div class="bar-meter"><i id="bar-meter-fill"></i></div>
       </div>
       <div class="bar-right">
